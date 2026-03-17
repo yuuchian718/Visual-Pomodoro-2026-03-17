@@ -1,0 +1,101 @@
+import React from 'react';
+import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Headphones, HeadphoneOff } from 'lucide-react';
+import { motion } from 'motion/react';
+import { cn } from '../lib/utils';
+
+interface TimerControlsProps {
+  isActive: boolean;
+  isFinished: boolean;
+  sfxEnabled: boolean;
+  musicEnabled: boolean;
+  onToggle: () => void;
+  onReset: () => void;
+  onOpenSettings: () => void;
+  onToggleSfx: () => void;
+  onToggleMusic: () => void;
+}
+
+export const TimerControls: React.FC<TimerControlsProps> = ({
+  isActive,
+  isFinished,
+  sfxEnabled,
+  musicEnabled,
+  onToggle,
+  onReset,
+  onOpenSettings,
+  onToggleSfx,
+  onToggleMusic,
+}) => {
+  return (
+    <div className="mt-12 flex flex-col items-center gap-6">
+      <div className="flex items-center gap-6">
+        <button
+          onClick={onReset}
+          className="group flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+          title="Reset"
+        >
+          <RotateCcw className="h-8 w-8 text-white/80 group-hover:text-white" />
+        </button>
+
+        <button
+          onClick={onToggle}
+          className={cn(
+            "flex h-24 w-24 items-center justify-center rounded-full transition-all active:scale-90 shadow-2xl",
+            isActive 
+              ? "bg-red-500 hover:bg-red-600 shadow-red-500/20" 
+              : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+          )}
+        >
+          {isActive ? (
+            <Pause className="h-12 w-12 fill-white text-white" />
+          ) : (
+            <Play className="ml-2 h-12 w-12 fill-white text-white" />
+          )}
+        </button>
+
+        <button
+          onClick={onOpenSettings}
+          className="group flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+          title="Settings"
+        >
+          <Settings className="h-8 w-8 text-white/80 group-hover:text-white" />
+        </button>
+      </div>
+
+      {/* Subtle Secondary Toggles */}
+      <div className="flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity duration-500">
+        <button
+          onClick={onToggleSfx}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all border backdrop-blur-sm",
+            sfxEnabled ? "border-white/40 bg-white/5 text-white/90" : "border-red-500/50 bg-red-500/10 text-red-400"
+          )}
+        >
+          {sfxEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          Clock Sound
+        </button>
+
+        <button
+          onClick={onToggleMusic}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all border backdrop-blur-sm",
+            musicEnabled ? "border-white/40 bg-white/5 text-white/90" : "border-blue-500/50 bg-blue-500/10 text-blue-400"
+          )}
+        >
+          {musicEnabled ? <Headphones className="h-3.5 w-3.5" /> : <HeadphoneOff className="h-3.5 w-3.5" />}
+          Music
+        </button>
+      </div>
+
+      {isFinished && (
+        <motion.p 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="text-2xl font-medium text-emerald-400"
+        >
+          Time's up! Great job.
+        </motion.p>
+      )}
+    </div>
+  );
+};
