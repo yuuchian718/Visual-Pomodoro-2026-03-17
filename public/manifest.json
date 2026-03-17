@@ -1,0 +1,23 @@
+{
+  "name": "Visual Pomodoro",
+  "short_name": "Pomodoro",
+  "description": "A highly visual, customizable Pomodoro timer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=192&h=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=512&h=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
