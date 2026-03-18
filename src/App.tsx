@@ -4,6 +4,7 @@ import { soundManager, TickType, AlarmType } from './lib/sounds';
 import { TimerDisplay } from './components/TimerDisplay';
 import { TimerControls } from './components/TimerControls';
 import { SettingsModal } from './components/SettingsModal';
+import { cn } from './lib/utils';
 
 const DURATIONS = [90, 60, 45, 30, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
@@ -23,7 +24,7 @@ export default function App() {
   const musicInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const { timeLeft, isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: sfxEnabled });
+  const { timeLeft, isActive, isFinished, toggle, reset, formatTime, progress } = useTimer(duration, { soundEnabled: sfxEnabled });
 
   React.useEffect(() => {
     if (audioRef.current) {
@@ -86,28 +87,36 @@ export default function App() {
         className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
         style={{ backgroundImage: `url(${bgImage})` }}
       >
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       {/* Main Content */}
-      <main className="relative z-10 flex h-full flex-col items-center justify-center p-8">
-        <TimerDisplay 
-          minutes={minutes} 
-          seconds={seconds} 
-          isActive={isActive} 
-        />
+      <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 px-8 overflow-y-auto">
+        <div className="flex-grow flex flex-col items-center justify-start pt-8 md:justify-center md:pt-0 w-full max-w-5xl mx-auto">
+          <TimerDisplay 
+            minutes={minutes} 
+            seconds={seconds} 
+            isActive={isActive} 
+          />
 
-        <TimerControls 
-          isActive={isActive}
-          isFinished={isFinished}
-          sfxEnabled={sfxEnabled}
-          musicEnabled={musicEnabled}
-          onToggle={toggle}
-          onReset={handleReset}
-          onOpenSettings={() => setShowSettings(true)}
-          onToggleSfx={() => setSfxEnabled(!sfxEnabled)}
-          onToggleMusic={() => setMusicEnabled(!musicEnabled)}
-        />
+          <TimerControls 
+            isActive={isActive}
+            isFinished={isFinished}
+            sfxEnabled={sfxEnabled}
+            musicEnabled={musicEnabled}
+            onToggle={toggle}
+            onReset={handleReset}
+            onOpenSettings={() => setShowSettings(true)}
+            onToggleSfx={() => setSfxEnabled(!sfxEnabled)}
+            onToggleMusic={() => setMusicEnabled(!musicEnabled)}
+          />
+        </div>
+
+        {/* Footer Branding */}
+        <div className="mt-12 text-center pointer-events-none flex-shrink-0">
+          <p className="text-white/30 text-[10px] tracking-[0.4em] uppercase font-medium">Visual Pomodoro</p>
+          <p className="text-white/30 text-[8px] tracking-[0.2em] uppercase mt-1">Focus Flow</p>
+        </div>
       </main>
 
       {/* Settings Modal */}
@@ -128,11 +137,6 @@ export default function App() {
         musicInputRef={musicInputRef}
       />
 
-      {/* Footer Branding */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <p className="text-white/30 text-[10px] tracking-[0.4em] uppercase font-medium">Visual Pomodoro</p>
-        <p className="text-white/30 text-[8px] tracking-[0.2em] uppercase mt-1">Focus Flow</p>
-      </div>
 
       {/* Hidden Audio Element for Music */}
       {bgMusicUrl && (

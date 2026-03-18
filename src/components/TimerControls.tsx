@@ -27,14 +27,14 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
   onToggleMusic,
 }) => {
   return (
-    <div className="mt-12 flex flex-col items-center gap-6">
-      <div className="flex items-center gap-6">
+    <div className="mt-20 md:mt-40 lg:mt-24 flex flex-col items-center gap-8 w-full">
+      <div className="flex items-center justify-center gap-6 md:gap-8">
         <button
           onClick={onReset}
-          className="group flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+          className="group flex h-8 w-8 md:h-16 md:w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
           title="Reset"
         >
-          <RotateCcw className="h-8 w-8 text-white/80 group-hover:text-white" />
+          <RotateCcw className="h-4 w-4 md:h-8 md:w-8 text-white/80 group-hover:text-white" />
         </button>
 
         <button
@@ -55,15 +55,15 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
 
         <button
           onClick={onOpenSettings}
-          className="group flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+          className="group flex h-8 w-8 md:h-16 md:w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
           title="Settings"
         >
-          <Settings className="h-8 w-8 text-white/80 group-hover:text-white" />
+          <Settings className="h-4 w-4 md:h-8 md:w-8 text-white/80 group-hover:text-white" />
         </button>
       </div>
 
       {/* Subtle Secondary Toggles */}
-      <div className="flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity duration-500">
+      <div className="flex items-center justify-center gap-4 opacity-70 hover:opacity-100 transition-opacity duration-500">
         <button
           onClick={onToggleSfx}
           className={cn(
