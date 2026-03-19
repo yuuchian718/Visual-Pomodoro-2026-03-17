@@ -1,9 +1,9 @@
-const CACHE_NAME = 'visual-pomodoro-v2';
+const CACHE_NAME = 'visual-pomodoro-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json?v=2',
-  '/icon.png?v=2'
+  '/manifest.json',
+  '/icon.png'
 ];
 
 self.addEventListener('install', (event) => {
