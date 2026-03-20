@@ -13,6 +13,8 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+        filename: 'sw.js',
+        manifestFilename: 'manifest.json',
         manifest: {
           name: 'Visual Pomodoro',
           short_name: 'Pomodoro',
@@ -20,6 +22,8 @@ export default defineConfig(({mode}) => {
           theme_color: '#10b981',
           background_color: '#000000',
           display: 'standalone',
+          start_url: '/',
+          scope: '/',
           icons: [
             {
               src: '/icons/icon-192.png',
