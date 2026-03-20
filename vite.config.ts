@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+        includeAssets: ['apple-touch-icon.png', 'icon.svg'],
         filename: 'sw.js',
         manifestFilename: 'manifest.json',
         manifest: {
@@ -26,6 +26,18 @@ export default defineConfig(({mode}) => {
           scope: '/',
           icons: [
             {
+              src: '/icon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'any',
+            },
+            {
+              src: '/icon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'maskable',
+            },
+            {
               src: '/icons/icon-192.png',
               sizes: '192x192',
               type: 'image/png',
@@ -34,12 +46,6 @@ export default defineConfig(({mode}) => {
               src: '/icons/icon-512.png',
               sizes: '512x512',
               type: 'image/png',
-            },
-            {
-              src: '/icons/icon-512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable',
             },
           ],
         },
