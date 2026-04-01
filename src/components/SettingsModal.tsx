@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, X, ImageIcon, Music, Bell, Music2 } from 'lucide-react';
+import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TickType, AlarmType } from '../lib/sounds';
+import type {AccessState} from '../lib/access';
+import {AuthPanel} from './AuthPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,6 +21,10 @@ interface SettingsModalProps {
   bgMusicName: string | null;
   onMusicUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   musicInputRef: React.RefObject<HTMLInputElement | null>;
+  accessState: AccessState;
+  onSaveLicenseToken: (token: string) => Promise<void>;
+  onClearLicenseToken: () => Promise<void>;
+  onRefreshAccess: () => Promise<void>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -36,6 +42,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   bgMusicName,
   onMusicUpload,
   musicInputRef,
+  accessState,
+  onSaveLicenseToken,
+  onClearLicenseToken,
+  onRefreshAccess,
 }) => {
   return (
     <AnimatePresence>
@@ -191,6 +201,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </div>
                 </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-400">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  Access & License
+                </div>
+                <AuthPanel
+                  accessState={accessState}
+                  onSaveLicenseToken={onSaveLicenseToken}
+                  onClearLicenseToken={onClearLicenseToken}
+                  onRefreshAccess={onRefreshAccess}
+                  compact
+                />
               </section>
             </div>
 

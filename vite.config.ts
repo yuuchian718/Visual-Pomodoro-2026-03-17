@@ -6,6 +6,7 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  const productionEnv = loadEnv('production', '.', '');
   return {
     plugins: [
       react(),
@@ -47,6 +48,18 @@ export default defineConfig(({mode}) => {
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'import.meta.env.VITE_KOTO_PUBLIC_KEY_B64': JSON.stringify(
+        env.VITE_KOTO_PUBLIC_KEY_B64 ||
+          productionEnv.VITE_KOTO_PUBLIC_KEY_B64 ||
+          process.env.VITE_KOTO_PUBLIC_KEY_B64 ||
+          '',
+      ),
+      'import.meta.env.VITE_KOTO_TRIAL_PUBLIC_KEY_B64': JSON.stringify(
+        env.VITE_KOTO_TRIAL_PUBLIC_KEY_B64 ||
+          productionEnv.VITE_KOTO_TRIAL_PUBLIC_KEY_B64 ||
+          process.env.VITE_KOTO_TRIAL_PUBLIC_KEY_B64 ||
+          '',
+      ),
     },
     resolve: {
       alias: {

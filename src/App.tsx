@@ -4,12 +4,24 @@ import { soundManager, TickType, AlarmType } from './lib/sounds';
 import { TimerDisplay } from './components/TimerDisplay';
 import { TimerControls } from './components/TimerControls';
 import { SettingsModal } from './components/SettingsModal';
-import { cn } from './lib/utils';
+import type {AccessState} from './lib/access';
 
 const DURATIONS = [90, 60, 45, 30, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
 
-export default function App() {
+interface AppProps {
+  accessState: AccessState;
+  onSaveLicenseToken: (token: string) => Promise<void>;
+  onClearLicenseToken: () => Promise<void>;
+  onRefreshAccess: () => Promise<void>;
+}
+
+export default function App({
+  accessState,
+  onSaveLicenseToken,
+  onClearLicenseToken,
+  onRefreshAccess,
+}: AppProps) {
   const [duration, setDuration] = useState(25);
   const [bgImage, setBgImage] = useState(DEFAULT_IMAGE);
   const [showSettings, setShowSettings] = useState(false);
@@ -24,7 +36,7 @@ export default function App() {
   const musicInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const { timeLeft, isActive, isFinished, toggle, reset, formatTime, progress } = useTimer(duration, { soundEnabled: sfxEnabled });
+  const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: sfxEnabled });
 
   React.useEffect(() => {
     if (audioRef.current) {
@@ -135,6 +147,10 @@ export default function App() {
         bgMusicName={bgMusicName}
         onMusicUpload={handleMusicUpload}
         musicInputRef={musicInputRef}
+        accessState={accessState}
+        onSaveLicenseToken={onSaveLicenseToken}
+        onClearLicenseToken={onClearLicenseToken}
+        onRefreshAccess={onRefreshAccess}
       />
 
 
