@@ -64,6 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [customDurationInput, setCustomDurationInput] = React.useState('');
   const [customDurationError, setCustomDurationError] = React.useState<string | null>(null);
   const isPremium = accessState.isPremium;
+  const shouldShowUpgradeEntry = accessState.accessSource !== 'LICENSE';
   const freeDurations = accessState.allowedBaseDurations;
   const upgradeUrl = getUpgradeUrl();
 
@@ -359,7 +360,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </section>
 
-              {!isPremium && (
+              {shouldShowUpgradeEntry && (
                 <section className="space-y-4 rounded-3xl border border-amber-200/12 bg-[linear-gradient(135deg,rgba(255,248,220,0.08),rgba(255,255,255,0.03))] p-4 text-center">
                   <div className="space-y-2">
                     <div className="flex items-center justify-center gap-2 text-sm font-medium uppercase tracking-widest text-amber-100/80">
