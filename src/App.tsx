@@ -11,6 +11,18 @@ import {resolveBackgroundImage, storeBackgroundImage} from './lib/background-ima
 const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
 
+type WakeLockSentinelLike = {
+  released: boolean;
+  release: () => Promise<void>;
+  addEventListener?: (type: 'release', listener: () => void) => void;
+};
+
+type NavigatorWithWakeLock = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<WakeLockSentinelLike>;
+  };
+};
+
 interface AppProps {
   accessState: AccessState;
   onSaveLicenseToken: (token: string) => Promise<void>;
@@ -35,12 +47,17 @@ export default function App({
   const [bgMusicName, setBgMusicName] = useState<string | null>(null);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(false);
+  const [screenWakeLockRequested, setScreenWakeLockRequested] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const wakeLockSentinelRef = useRef<WakeLockSentinelLike | null>(null);
 
   const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: sfxEnabled });
+  const wakeLockSupported =
+    typeof navigator !== 'undefined' && 'wakeLock' in (navigator as NavigatorWithWakeLock);
 
   React.useEffect(() => {
     if (audioRef.current) {
@@ -51,6 +68,98 @@ export default function App({
       }
     }
   }, [isActive, bgMusicUrl, musicEnabled]);
+
+  const releaseWakeLock = React.useCallback(async () => {
+    const sentinel = wakeLockSentinelRef.current;
+    wakeLockSentinelRef.current = null;
+    setScreenWakeLockEnabled(false);
+
+    if (!sentinel) {
+      return;
+    }
+
+    try {
+      await sentinel.release();
+    } catch {
+      // Ignore release failures so UI never breaks.
+    }
+  }, []);
+
+  const requestWakeLock = React.useCallback(async () => {
+    if (!wakeLockSupported || document.visibilityState !== 'visible') {
+      return false;
+    }
+
+    wakeLockSentinelRef.current = null;
+    setScreenWakeLockEnabled(false);
+
+    try {
+      const sentinel = await (navigator as NavigatorWithWakeLock).wakeLock!.request('screen');
+      wakeLockSentinelRef.current = sentinel;
+      setScreenWakeLockEnabled(!sentinel.released);
+      sentinel.addEventListener?.('release', () => {
+        wakeLockSentinelRef.current = null;
+        setScreenWakeLockEnabled(false);
+      });
+      return true;
+    } catch {
+      wakeLockSentinelRef.current = null;
+      setScreenWakeLockEnabled(false);
+      return false;
+    }
+  }, [wakeLockSupported]);
+
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setScreenWakeLockEnabled(false);
+        return;
+      }
+
+      if (screenWakeLockRequested && !wakeLockSentinelRef.current) {
+        void requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [requestWakeLock, screenWakeLockRequested]);
+
+  React.useEffect(() => {
+    return () => {
+      void releaseWakeLock();
+    };
+  }, [releaseWakeLock]);
+
+  const handleToggleScreenWakeLock = React.useCallback(async () => {
+    if (screenWakeLockRequested || screenWakeLockEnabled) {
+      setScreenWakeLockRequested(false);
+      await releaseWakeLock();
+      return;
+    }
+
+    if (!wakeLockSupported) {
+      setScreenWakeLockRequested(false);
+      setScreenWakeLockEnabled(false);
+      return;
+    }
+
+    setScreenWakeLockRequested(true);
+    const acquired = await requestWakeLock();
+
+    if (!acquired) {
+      setScreenWakeLockRequested(false);
+    }
+  }, [
+    releaseWakeLock,
+    requestWakeLock,
+    screenWakeLockEnabled,
+    screenWakeLockRequested,
+    wakeLockSupported,
+  ]);
 
   const handleReset = () => {
     reset(duration);
@@ -133,6 +242,11 @@ export default function App({
             onReset={handleReset}
             onOpenSettings={() => setShowSettings(true)}
             onToggleSfx={() => setSfxEnabled(!sfxEnabled)}
+            screenWakeLockEnabled={screenWakeLockEnabled}
+            wakeLockSupported={wakeLockSupported}
+            onToggleScreenWakeLock={() => {
+              void handleToggleScreenWakeLock();
+            }}
             onToggleMusic={() => setMusicEnabled(!musicEnabled)}
           />
         </div>

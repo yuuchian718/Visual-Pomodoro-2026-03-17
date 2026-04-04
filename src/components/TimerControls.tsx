@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Headphones, HeadphoneOff } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Headphones, HeadphoneOff, Smartphone } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -8,10 +8,13 @@ interface TimerControlsProps {
   isFinished: boolean;
   sfxEnabled: boolean;
   musicEnabled: boolean;
+  screenWakeLockEnabled: boolean;
+  wakeLockSupported: boolean;
   onToggle: () => void;
   onReset: () => void;
   onOpenSettings: () => void;
   onToggleSfx: () => void;
+  onToggleScreenWakeLock: () => void;
   onToggleMusic: () => void;
 }
 
@@ -20,10 +23,13 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
   isFinished,
   sfxEnabled,
   musicEnabled,
+  screenWakeLockEnabled,
+  wakeLockSupported,
   onToggle,
   onReset,
   onOpenSettings,
   onToggleSfx,
+  onToggleScreenWakeLock,
   onToggleMusic,
 }) => {
   return (
@@ -73,6 +79,23 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
         >
           {sfxEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
           Clock Sound
+        </button>
+
+        <button
+          onClick={onToggleScreenWakeLock}
+          disabled={!wakeLockSupported}
+          className={cn(
+            "flex items-center gap-2 max-md:landscape:gap-1.5 px-4 max-md:landscape:px-3 py-2 max-md:landscape:py-1.5 rounded-full text-[10px] max-md:landscape:text-[9px] uppercase tracking-widest font-bold transition-all border backdrop-blur-sm",
+            screenWakeLockEnabled
+              ? "border-amber-300/60 bg-amber-200/12 text-amber-100"
+              : wakeLockSupported
+                ? "border-white/55 bg-white/10 text-white"
+                : "border-white/20 bg-white/5 text-white/40"
+          )}
+          title={wakeLockSupported ? "Keep screen on" : "Screen Wake Lock is not supported"}
+        >
+          <Smartphone className="h-3.5 w-3.5" />
+          Screen On
         </button>
 
         <button
