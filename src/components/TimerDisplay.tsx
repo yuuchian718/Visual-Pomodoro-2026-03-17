@@ -9,17 +9,20 @@ interface TimerDisplayProps {
 }
 
 export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, isActive }) => {
+  const hasThreeDigitMinutes = minutes.length >= 3;
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       className="relative flex w-full h-[50vh] md:h-auto items-center justify-center"
     >
-      <div className="relative flex items-baseline gap-2 md:gap-4">
+      <div className="relative flex max-w-full items-baseline justify-center gap-1 px-2 md:gap-4">
         {/* Minutes: Protruding 3D Effect */}
         <h1 
           className={cn(
-            "text-[38vw] md:text-[28vw] font-black leading-none tracking-tighter text-white",
+            hasThreeDigitMinutes ? "text-[27vw] md:text-[28vw]" : "text-[38vw] md:text-[28vw]",
+            "font-black leading-none tracking-tighter text-white",
             "select-none transition-all duration-300 animate-glow",
             isActive ? "opacity-100" : "opacity-80"
           )}
@@ -44,12 +47,20 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         </h1>
 
         {/* Colon */}
-        <span className="text-[20vw] md:text-[15vw] font-black text-white/40 mb-[8vw] md:mb-[4vw]">:</span>
+        <span
+          className={cn(
+            hasThreeDigitMinutes ? "text-[14vw] mb-[5vw] md:text-[15vw] md:mb-[4vw]" : "text-[20vw] mb-[8vw] md:text-[15vw] md:mb-[4vw]",
+            "font-black text-white/40",
+          )}
+        >
+          :
+        </span>
 
         {/* Seconds: Recessed 3D Effect */}
         <h1 
           className={cn(
-            "text-[32vw] md:text-[24vw] font-black leading-none tracking-tighter animate-glow",
+            hasThreeDigitMinutes ? "text-[23vw] md:text-[24vw]" : "text-[32vw] md:text-[24vw]",
+            "font-black leading-none tracking-tighter animate-glow",
             "select-none transition-all duration-300",
             "text-black/40"
           )}
