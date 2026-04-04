@@ -7,52 +7,110 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const targetEndAtRef = useRef<number | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const syncTimeLeft = useCallback(() => {
+    if (targetEndAtRef.current === null) {
+      return;
+    }
+
+    setTimeLeft(prev => {
+      const next = Math.max(0, Math.ceil((targetEndAtRef.current! - Date.now()) / 1000));
+
+      if (next > 0 && next < prev && soundEnabled) {
+        if (next <= 10) {
+          soundManager.playAlarm(next);
+        } else {
+          soundManager.playTick();
+        }
+      } else if (next === 0 && prev !== 0) {
+        if (soundEnabled) {
+          soundManager.playFinish();
+        }
+        targetEndAtRef.current = null;
+        setIsActive(false);
+        setIsFinished(true);
+        clearTimer();
+      }
+
+      return next;
+    });
+  }, [clearTimer, soundEnabled]);
+
+  const settlePausedTimeLeft = useCallback(() => {
+    if (targetEndAtRef.current === null) {
+      return;
+    }
+
+    const next = Math.max(0, Math.ceil((targetEndAtRef.current - Date.now()) / 1000));
+    setTimeLeft(next);
+
+    if (next === 0) {
+      if (soundEnabled) {
+        soundManager.playFinish();
+      }
+      setIsFinished(true);
+    }
+  }, [soundEnabled]);
 
   const reset = useCallback((minutes: number) => {
     setIsActive(false);
     setIsFinished(false);
     setTimeLeft(minutes * 60);
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, []);
+    targetEndAtRef.current = null;
+    clearTimer();
+  }, [clearTimer]);
 
   const toggle = useCallback(() => {
-    setIsActive(prev => !prev);
-  }, []);
-
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          const next = prev - 1;
-          
-          // Sound logic
-          if (next > 0) {
-            if (soundEnabled) {
-              if (next <= 10) {
-                soundManager.playAlarm(next);
-              } else {
-                soundManager.playTick();
-              }
-            }
-          } else if (next === 0) {
-            if (soundEnabled) {
-              soundManager.playFinish();
-            }
-            setIsActive(false);
-            setIsFinished(true);
-          }
-          
-          return next;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (isActive) {
+      settlePausedTimeLeft();
+      targetEndAtRef.current = null;
+      setIsActive(false);
+      clearTimer();
+      return;
     }
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (timeLeft <= 0) {
+      return;
+    }
+
+    targetEndAtRef.current = Date.now() + timeLeft * 1000;
+    setIsFinished(false);
+    setIsActive(true);
+  }, [clearTimer, isActive, settlePausedTimeLeft, timeLeft]);
+
+  useEffect(() => {
+    if (!isActive || timeLeft <= 0 || targetEndAtRef.current === null) {
+      clearTimer();
+      return;
+    }
+
+    syncTimeLeft();
+    timerRef.current = setInterval(syncTimeLeft, 1000);
+
+    return clearTimer;
+  }, [clearTimer, isActive, syncTimeLeft, timeLeft]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        syncTimeLeft();
+      }
     };
-  }, [isActive, timeLeft, soundEnabled]);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [syncTimeLeft]);
 
   const formatTimeParts = () => {
     const mins = Math.floor(timeLeft / 60);
