@@ -5,8 +5,10 @@ import { TimerDisplay } from './components/TimerDisplay';
 import { TimerControls } from './components/TimerControls';
 import { SettingsModal } from './components/SettingsModal';
 import type {AccessState} from './lib/access';
+import type {CommercialActivationResult} from './components/AuthPanel';
+import {resolveBackgroundImage, storeBackgroundImage} from './lib/background-image';
 
-const DURATIONS = [90, 60, 45, 30, 15, 5];
+const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
 
 interface AppProps {
@@ -14,6 +16,7 @@ interface AppProps {
   onSaveLicenseToken: (token: string) => Promise<void>;
   onClearLicenseToken: () => Promise<void>;
   onRefreshAccess: () => Promise<void>;
+  onActivateCommercialLicenseKey: (licenseKey: string) => Promise<CommercialActivationResult>;
 }
 
 export default function App({
@@ -21,9 +24,10 @@ export default function App({
   onSaveLicenseToken,
   onClearLicenseToken,
   onRefreshAccess,
+  onActivateCommercialLicenseKey,
 }: AppProps) {
   const [duration, setDuration] = useState(25);
-  const [bgImage, setBgImage] = useState(DEFAULT_IMAGE);
+  const [bgImage, setBgImage] = useState(() => resolveBackgroundImage(DEFAULT_IMAGE));
   const [showSettings, setShowSettings] = useState(false);
   const [tickType, setTickType] = useState<TickType>('classic');
   const [alarmType, setAlarmType] = useState<AlarmType>('classic');
@@ -58,8 +62,17 @@ export default function App({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setBgImage(url);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : null;
+        if (!result) {
+          return;
+        }
+
+        storeBackgroundImage(result);
+        setBgImage(result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -151,6 +164,7 @@ export default function App({
         onSaveLicenseToken={onSaveLicenseToken}
         onClearLicenseToken={onClearLicenseToken}
         onRefreshAccess={onRefreshAccess}
+        onActivateCommercialLicenseKey={onActivateCommercialLicenseKey}
       />
 
 

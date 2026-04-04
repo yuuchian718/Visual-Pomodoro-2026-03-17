@@ -1,12 +1,13 @@
 import React from 'react';
 import type {AccessState} from '../lib/access';
-import {AuthPanel} from './AuthPanel';
+import {AuthPanel, type CommercialActivationResult} from './AuthPanel';
 
 interface LockScreenProps {
   accessState: AccessState;
   onSaveLicenseToken: (token: string) => Promise<void>;
   onClearLicenseToken: () => Promise<void>;
   onRefreshAccess: () => Promise<void>;
+  onActivateCommercialLicenseKey: (licenseKey: string) => Promise<CommercialActivationResult>;
 }
 
 export const LockScreen: React.FC<LockScreenProps> = ({
@@ -14,6 +15,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   onSaveLicenseToken,
   onClearLicenseToken,
   onRefreshAccess,
+  onActivateCommercialLicenseKey,
 }) => {
   const helperText = accessState.license.hasStoredToken
     ? 'The stored formal license is invalid or expired for this device. Trial access is not available, so the app remains locked.'
@@ -34,6 +36,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
             onSaveLicenseToken={onSaveLicenseToken}
             onClearLicenseToken={onClearLicenseToken}
             onRefreshAccess={onRefreshAccess}
+            onActivateCommercialLicenseKey={onActivateCommercialLicenseKey}
           />
         </div>
       </main>

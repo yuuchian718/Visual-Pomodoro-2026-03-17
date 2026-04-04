@@ -1,10 +1,20 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck } from 'lucide-react';
+import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Cherry } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TickType, AlarmType } from '../lib/sounds';
 import type {AccessState} from '../lib/access';
-import {AuthPanel} from './AuthPanel';
+import {AuthPanel, type CommercialActivationResult} from './AuthPanel';
+
+export const parseCustomDurationInput = (value: string) => {
+  const normalizedValue = value.trim();
+  if (!/^\d+$/.test(normalizedValue)) {
+    return null;
+  }
+
+  const minutes = Number.parseInt(normalizedValue, 10);
+  return minutes >= 1 && minutes <= 240 ? minutes : null;
+};
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,6 +35,7 @@ interface SettingsModalProps {
   onSaveLicenseToken: (token: string) => Promise<void>;
   onClearLicenseToken: () => Promise<void>;
   onRefreshAccess: () => Promise<void>;
+  onActivateCommercialLicenseKey: (licenseKey: string) => Promise<CommercialActivationResult>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -46,7 +57,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSaveLicenseToken,
   onClearLicenseToken,
   onRefreshAccess,
+  onActivateCommercialLicenseKey,
 }) => {
+  const [isCustomDurationOpen, setIsCustomDurationOpen] = React.useState(false);
+  const [customDurationInput, setCustomDurationInput] = React.useState('');
+  const [customDurationError, setCustomDurationError] = React.useState<string | null>(null);
+
+  const handleCustomDurationApply = () => {
+    const parsedMinutes = parseCustomDurationInput(customDurationInput);
+    if (!parsedMinutes) {
+      setCustomDurationError('Enter a whole number from 1 to 240.');
+      return;
+    }
+
+    setCustomDurationError(null);
+    setIsCustomDurationOpen(false);
+    setCustomDurationInput(String(parsedMinutes));
+    onDurationChange(parsedMinutes);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -54,16 +83,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xl p-3 sm:p-4 md:p-6"
         >
           <motion.div
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className="w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-zinc-900/90 p-8 border border-white/10 shadow-2xl overflow-hidden"
+            className="w-full max-w-[56rem] max-h-[90vh] flex flex-col rounded-3xl border border-white/12 bg-zinc-950/72 px-5 py-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur-2xl overflow-hidden"
           >
             <div className="mb-8 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Clock className="h-6 w-6 text-emerald-400" />
                 Customization
               </h2>
@@ -78,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-8 overflow-y-auto pr-2 custom-scrollbar flex-grow py-2">
               {/* Duration Selection */}
               <section>
-                <label className="mb-4 block text-sm font-medium text-zinc-400 uppercase tracking-widest">
+                <label className="mb-4 block text-sm font-medium text-zinc-300 uppercase tracking-widest">
                   Timer Duration (Minutes)
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -96,12 +125,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {d}m
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDurationOpen((open) => !open);
+                      setCustomDurationError(null);
+                    }}
+                    className={cn(
+                      "rounded-xl py-3 text-lg font-semibold transition-all",
+                      isCustomDurationOpen
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white/5 hover:bg-white/10 text-zinc-300"
+                    )}
+                  >
+                    Custom
+                  </button>
                 </div>
+                {isCustomDurationOpen && (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03]">
+                        <Cherry className="h-4 w-4 text-emerald-300/80" />
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={customDurationInput}
+                        onChange={(event) => {
+                          setCustomDurationInput(event.target.value);
+                          if (customDurationError) {
+                            setCustomDurationError(null);
+                          }
+                        }}
+                        placeholder="Enter 1–240 minutes"
+                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCustomDurationApply}
+                        className="rounded-xl border border-white/12 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.12]"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {customDurationError && (
+                      <p className="mt-3 text-xs text-red-300/90">{customDurationError}</p>
+                    )}
+                  </div>
+                )}
               </section>
 
               {/* Background Selection */}
               <section>
-                <label className="mb-4 block text-sm font-medium text-zinc-400 uppercase tracking-widest">
+                <label className="mb-4 block text-sm font-medium text-zinc-300 uppercase tracking-widest">
                   Background Image
                 </label>
                 <div className="flex gap-4">
@@ -124,14 +200,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Sound Selection */}
               <section className="space-y-6">
-                <label className="block text-sm font-medium text-zinc-400 uppercase tracking-widest">
+                <label className="block text-sm font-medium text-zinc-300 uppercase tracking-widest">
                   Sound Modes
                 </label>
                 
                 <div className="space-y-6">
                   {/* Tick Sound Selection */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Music className="h-3 w-3" />
                       Tick Style
                     </div>
@@ -155,7 +231,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Alarm Sound Selection */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Bell className="h-3 w-3" />
                       Alarm Style
                     </div>
@@ -179,7 +255,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Background Music Upload */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider">
+                    <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Music2 className="h-3 w-3" />
                       Background Music
                     </div>
@@ -187,7 +263,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => musicInputRef.current?.click()}
                       className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 hover:bg-white/10 transition-all border border-white/5"
                     >
-                      <span className="text-sm text-zinc-300 truncate max-w-[200px]">
+                      <span className="text-sm text-zinc-200 truncate max-w-[200px]">
                         {bgMusicName || "Upload Music File"}
                       </span>
                       <Music2 className="h-4 w-4 text-blue-400" />
@@ -203,8 +279,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-400">
+              <section className="space-y-4 rounded-3xl border border-white/8 bg-white/[0.04] p-3">
+                <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-300">
                   <ShieldCheck className="h-4 w-4 text-emerald-400" />
                   Access & License
                 </div>
@@ -213,6 +289,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onSaveLicenseToken={onSaveLicenseToken}
                   onClearLicenseToken={onClearLicenseToken}
                   onRefreshAccess={onRefreshAccess}
+                  onActivateCommercialLicenseKey={onActivateCommercialLicenseKey}
                   compact
                 />
               </section>
@@ -220,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-full mt-8 flex-shrink-0 rounded-2xl bg-white py-4 text-lg font-bold text-black hover:bg-zinc-200 transition-all active:scale-[0.98] shadow-xl"
+              className="mt-8 w-full flex-shrink-0 rounded-2xl border border-white/16 bg-white/[0.11] py-3.5 text-base font-semibold text-white/95 shadow-lg shadow-black/20 transition-all hover:bg-white/[0.15] hover:text-white active:scale-[0.98]"
             >
               Done
             </button>
