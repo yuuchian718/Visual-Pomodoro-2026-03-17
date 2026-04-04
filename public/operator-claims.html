@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operator Claims</title>
+    <style>
+      body {
+        margin: 0;
+        background: #0a0a0a;
+        color: #f5f5f5;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 24px;
+      }
+
+      .shell {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 28px;
+      }
+
+      p {
+        color: rgba(255, 255, 255, 0.72);
+        line-height: 1.6;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 24px 0 20px;
+      }
+
+      input,
+      button {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f5f5f5;
+        padding: 12px 14px;
+        font-size: 14px;
+      }
+
+      input {
+        min-width: 280px;
+        flex: 1 1 320px;
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .status {
+        min-height: 22px;
+        margin-bottom: 16px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      .status.error {
+        color: #fca5a5;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 14px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+        vertical-align: top;
+      }
+
+      th {
+        color: rgba(255, 255, 255, 0.52);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 11px;
+      }
+
+      td {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        word-break: break-all;
+      }
+
+      .empty {
+        margin-top: 18px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <h1>Recent Commercial Certificate Claims</h1>
+      <p>
+        Internal operator view. Enter the operator secret manually to load the most recent
+        commercial certificate claim records.
+      </p>
+
+      <div class="toolbar">
+        <input
+          id="operator-secret"
+          type="password"
+          placeholder="Operator secret"
+          autocomplete="off"
+        />
+        <button id="load-button" type="button">Load Recent Claims</button>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <table id="claims-table" hidden>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Claim Token</th>
+            <th>Commercial Certificate</th>
+            <th>Claimed At</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="claims-body"></tbody>
+      </table>
+
+      <div id="empty-state" class="empty" hidden>No recent claim records.</div>
+    </main>
+
+    <script>
+      const secretInput = document.getElementById('operator-secret');
+      const loadButton = document.getElementById('load-button');
+      const statusEl = document.getElementById('status');
+      const tableEl = document.getElementById('claims-table');
+      const bodyEl = document.getElementById('claims-body');
+      const emptyEl = document.getElementById('empty-state');
+
+      const setStatus = (message, type = '') => {
+        statusEl.textContent = message;
+        statusEl.className = `status${type ? ` ${type}` : ''}`;
+      };
+
+      const renderClaims = (claims) => {
+        bodyEl.innerHTML = '';
+
+        if (!claims.length) {
+          tableEl.hidden = true;
+          emptyEl.hidden = false;
+          return;
+        }
+
+        emptyEl.hidden = true;
+        tableEl.hidden = false;
+
+        for (const claim of claims) {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${claim.email || ''}</td>
+            <td><code>${claim.claimToken || ''}</code></td>
+            <td><code>${claim.commercialCertificate || ''}</code></td>
+            <td>${claim.claimedAt || ''}</td>
+            <td>${claim.claimStatus || ''}</td>
+          `;
+          bodyEl.appendChild(row);
+        }
+      };
+
+      loadButton.addEventListener('click', async () => {
+        const secret = secretInput.value.trim();
+
+        if (!secret) {
+          setStatus('Operator secret is required.', 'error');
+          return;
+        }
+
+        loadButton.disabled = true;
+        setStatus('Loading recent claims...');
+        tableEl.hidden = true;
+        emptyEl.hidden = true;
+
+        try {
+          const response = await fetch('/.netlify/functions/commercial-certificate-recent-claims', {
+            method: 'GET',
+            headers: {
+              'x-license-operator-secret': secret,
+            },
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data && data.ok === true && Array.isArray(data.claims)) {
+            renderClaims(data.claims);
+            setStatus(`Loaded ${data.claims.length} recent claim${data.claims.length === 1 ? '' : 's'}.`);
+            return;
+          }
+
+          if (data && (data.error === 'OPERATOR_SECRET_INVALID' || data.error === 'OPERATOR_SECRET_REQUIRED')) {
+            setStatus('Operator secret is invalid or missing.', 'error');
+            return;
+          }
+
+          setStatus('Unable to load recent claims.', 'error');
+        } catch {
+          setStatus('Unable to load recent claims.', 'error');
+        } finally {
+          loadButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
