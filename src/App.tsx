@@ -77,6 +77,15 @@ export default function App({
   }, [accessState.canUseMusic]);
 
   React.useEffect(() => {
+    if (accessState.canUseBackgroundFeatures) {
+      setBgImage(resolveBackgroundImage(DEFAULT_IMAGE));
+      return;
+    }
+
+    setBgImage(DEFAULT_IMAGE);
+  }, [accessState.canUseBackgroundFeatures]);
+
+  React.useEffect(() => {
     if (accessState.isPremium) {
       return;
     }

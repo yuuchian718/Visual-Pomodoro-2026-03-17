@@ -31,11 +31,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const [commercialLicenseKey, setCommercialLicenseKey] = useState('');
   const [commercialResult, setCommercialResult] = useState<CommercialActivationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const accessLabel = accessState.isPremium ? accessState.accessSource : 'FREE MODE';
   const trialStatus = accessState.isTrialActive
     ? `Active${accessState.trial.lastKnownEndsAt
       ? ` until ${new Date(accessState.trial.lastKnownEndsAt).toLocaleString()}`
       : ''}`
-    : 'Unavailable';
+    : accessState.trial.lastKnownEndsAt
+      ? 'Trial ended'
+      : 'Not started';
   const licenseStatus = accessState.license.hasStoredToken
     ? accessState.license.isValid
       ? 'Valid'
@@ -165,13 +168,15 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-white/60">Current Access</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <p className="text-xl font-semibold text-white">{accessState.accessSource}</p>
+              <p className="text-xl font-semibold text-white">{accessLabel}</p>
               <span className="rounded-full border border-emerald-400/30 bg-emerald-500/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
                 Access Status
               </span>
             </div>
             <p className="mt-3 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-xs leading-5 text-white/78">
-              Activation confirms license status. Your formal token still unlocks this device.
+              {accessState.isPremium
+                ? 'Activation confirms license status. Your formal token still unlocks this device.'
+                : 'Free mode stays available. Upgrade to unlock longer sessions, custom duration, music, and custom backgrounds.'}
             </p>
           </div>
         </div>
