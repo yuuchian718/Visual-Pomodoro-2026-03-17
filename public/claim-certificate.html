@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claim Your Commercial Certificate</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #060606;
+        --panel: rgba(18, 18, 18, 0.82);
+        --panel-border: rgba(255, 255, 255, 0.1);
+        --text: rgba(255, 255, 255, 0.95);
+        --muted: rgba(255, 255, 255, 0.68);
+        --soft: rgba(255, 255, 255, 0.08);
+        --accent: #34d399;
+        --accent-strong: #10b981;
+        --error: #fca5a5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(52, 211, 153, 0.14), transparent 30%),
+          linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .shell {
+        width: min(100%, 560px);
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        backdrop-filter: blur(24px);
+        border-radius: 28px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        padding: 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 11px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 36px);
+        line-height: 1.1;
+      }
+
+      .intro {
+        margin: 14px 0 0;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 15px;
+      }
+
+      .token-banner {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        word-break: break-all;
+      }
+
+      form {
+        margin-top: 22px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        color: rgba(255, 255, 255, 0.46);
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border-radius: 18px;
+        padding: 14px 16px;
+        font-size: 15px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: rgba(52, 211, 153, 0.55);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .actions {
+        margin-top: 16px;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 18px;
+        padding: 14px 18px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .primary {
+        width: 100%;
+        background: var(--accent);
+        color: #04110c;
+        box-shadow: 0 14px 30px rgba(16, 185, 129, 0.22);
+      }
+
+      .primary:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .status {
+        margin-top: 16px;
+        min-height: 22px;
+        font-size: 14px;
+      }
+
+      .status.error {
+        color: var(--error);
+      }
+
+      .status.success {
+        color: #bbf7d0;
+      }
+
+      .result {
+        margin-top: 24px;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(52, 211, 153, 0.25);
+        background: rgba(16, 185, 129, 0.08);
+        display: none;
+      }
+
+      .result.visible {
+        display: block;
+      }
+
+      .result h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .certificate {
+        margin-top: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.24);
+        padding: 14px 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 14px;
+        word-break: break-all;
+      }
+
+      .secondary {
+        margin-top: 14px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .next-step {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <p class="eyebrow">Visual Pomodoro</p>
+      <h1>Claim Your Commercial Certificate</h1>
+      <p class="intro">
+        Please enter a valid email address to continue. Your commercial certificate will be
+        generated immediately after submission.
+      </p>
+      <div id="claim-token-banner" class="token-banner" hidden></div>
+
+      <form id="claim-form">
+        <label for="email">Email Address</label>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+        <div class="actions">
+          <button id="submit-button" class="primary" type="submit">Generate Certificate</button>
+        </div>
+      </form>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <section id="result" class="result" aria-live="polite">
+        <h2>Your Commercial Certificate</h2>
+        <div id="certificate-value" class="certificate"></div>
+        <button id="copy-button" class="secondary" type="button">Copy Certificate</button>
+        <p class="next-step">
+          Copy this certificate and paste it into Settings → Access &amp; License in Visual
+          Pomodoro.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      const isLocalhost =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      const clearLocalServiceWorkers = async () => {
+        if (!isLocalhost || !('serviceWorker' in navigator)) {
+          return;
+        }
+
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        } catch {}
+      };
+
+      clearLocalServiceWorkers();
+
+      const form = document.getElementById('claim-form');
+      const emailInput = document.getElementById('email');
+      const submitButton = document.getElementById('submit-button');
+      const statusEl = document.getElementById('status');
+      const resultEl = document.getElementById('result');
+      const certificateValueEl = document.getElementById('certificate-value');
+      const copyButton = document.getElementById('copy-button');
+      const claimTokenBannerEl = document.getElementById('claim-token-banner');
+
+      const params = new URLSearchParams(window.location.search);
+      const claimToken = (params.get('claimToken') || '').trim();
+
+      if (claimToken) {
+        claimTokenBannerEl.hidden = false;
+        claimTokenBannerEl.textContent = `Claim token ready: ${claimToken}`;
+      } else {
+        claimTokenBannerEl.hidden = false;
+        claimTokenBannerEl.textContent = 'Missing claim token. Please use the claim link from your PDF.';
+      }
+
+      const setStatus = (message, type = '') => {
+        statusEl.textContent = message;
+        statusEl.className = `status${type ? ` ${type}` : ''}`;
+      };
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const email = emailInput.value.trim();
+
+        if (!claimToken) {
+          setStatus('This claim link is missing a claim token.', 'error');
+          return;
+        }
+
+        submitButton.disabled = true;
+        setStatus('');
+
+        try {
+          const response = await fetch('/.netlify/functions/commercial-certificate-claim', {
+            method: 'POST',
+            cache: 'no-store',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              claimToken,
+              email,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data && data.ok === true && typeof data.commercialCertificate === 'string') {
+            certificateValueEl.textContent = data.commercialCertificate;
+            resultEl.classList.add('visible');
+            setStatus('Certificate generated successfully.', 'success');
+            return;
+          }
+
+          if (data && data.code === 'INVALID_EMAIL') {
+            setStatus('Please enter a valid email address to continue.', 'error');
+            return;
+          }
+
+          if (data && data.code === 'NOT_FOUND') {
+            setStatus('This claim link is invalid or unavailable.', 'error');
+            return;
+          }
+
+          setStatus('Unable to generate your certificate right now.', 'error');
+        } catch {
+          setStatus('Unable to generate your certificate right now.', 'error');
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+
+      copyButton.addEventListener('click', async () => {
+        const value = certificateValueEl.textContent || '';
+        if (!value) return;
+
+        try {
+          await navigator.clipboard.writeText(value);
+          setStatus('Certificate copied to clipboard.', 'success');
+        } catch {
+          setStatus('Copy failed. Please copy the certificate manually.', 'error');
+        }
+      });
+    </script>
+  </body>
+</html>

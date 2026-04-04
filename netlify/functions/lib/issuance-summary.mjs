@@ -1,0 +1,15 @@
+export const summarizeIssuanceRecord = (record) => ({
+  issuanceId: record.issuanceId,
+  caseId: record.caseId,
+  handledAt: record.handledAt,
+  operatorName: record.operatorName,
+  licenseKey: record.licenseKey,
+  deviceId: record.deviceId,
+  commercialRecordStatus: record.commercialRecordStatus,
+  actionTaken: record.actionTaken,
+  whetherFormalTokenIssued: record.whetherFormalTokenIssued,
+  issuedTokenForDeviceId: record.issuedTokenForDeviceId,
+  issuedAt: record.issuedAt,
+  issuanceResult: record.issuanceResult,
+  customerReplySent: record.customerReplySent,
+});
