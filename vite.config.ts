@@ -20,7 +20,7 @@ export default defineConfig(({mode}) => {
           name: 'Visual Pomodoro',
           short_name: 'Pomodoro',
           description: 'A minimalist 3D Pomodoro timer for deep focus.',
-          theme_color: '#10b981',
+          theme_color: '#000000',
           background_color: '#000000',
           display: 'standalone',
           start_url: '/',
