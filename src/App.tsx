@@ -116,8 +116,8 @@ export default function App({
       </div>
 
       {/* Main Content */}
-      <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 px-8 overflow-y-auto">
-        <div className="flex-grow flex flex-col items-center justify-start pt-8 md:justify-center md:pt-0 w-full max-w-5xl mx-auto">
+      <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 max-md:landscape:py-4 px-8 max-md:landscape:px-4 overflow-y-auto">
+        <div className="flex-grow flex flex-col items-center justify-start pt-8 max-md:landscape:pt-2 md:justify-center md:pt-0 w-full max-w-5xl mx-auto">
           <TimerDisplay 
             minutes={minutes} 
             seconds={seconds} 
@@ -138,7 +138,7 @@ export default function App({
         </div>
 
         {/* Footer Branding */}
-        <div className="mt-12 text-center pointer-events-none flex-shrink-0">
+        <div className="mt-12 max-md:landscape:mt-4 text-center pointer-events-none flex-shrink-0">
           <p className="text-white/30 text-[10px] tracking-[0.4em] uppercase font-medium">Visual Pomodoro</p>
           <p className="text-white/30 text-[8px] tracking-[0.2em] uppercase mt-1">Focus Flow</p>
         </div>

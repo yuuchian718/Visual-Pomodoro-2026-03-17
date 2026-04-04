@@ -15,13 +15,15 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
     <motion.div 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative flex w-full h-[50vh] md:h-auto items-center justify-center"
+      className="relative flex w-full h-[50vh] max-md:landscape:h-[34vh] md:h-auto items-center justify-center"
     >
       <div className="relative flex max-w-full items-baseline justify-center gap-1 px-2 md:gap-4">
         {/* Minutes: Protruding 3D Effect */}
         <h1 
           className={cn(
-            hasThreeDigitMinutes ? "text-[27vw] md:text-[28vw]" : "text-[38vw] md:text-[28vw]",
+            hasThreeDigitMinutes
+              ? "text-[27vw] max-md:landscape:text-[20vw] md:text-[28vw]"
+              : "text-[38vw] max-md:landscape:text-[24vw] md:text-[28vw]",
             "font-black leading-none tracking-tighter text-white",
             "select-none transition-all duration-300 animate-glow",
             isActive ? "opacity-100" : "opacity-80"
@@ -49,7 +51,9 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         {/* Colon */}
         <span
           className={cn(
-            hasThreeDigitMinutes ? "text-[14vw] mb-[5vw] md:text-[15vw] md:mb-[4vw]" : "text-[20vw] mb-[8vw] md:text-[15vw] md:mb-[4vw]",
+            hasThreeDigitMinutes
+              ? "text-[14vw] mb-[5vw] max-md:landscape:text-[10vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]"
+              : "text-[20vw] mb-[8vw] max-md:landscape:text-[12vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]",
             "font-black text-white/40",
           )}
         >
@@ -59,7 +63,9 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         {/* Seconds: Recessed 3D Effect */}
         <h1 
           className={cn(
-            hasThreeDigitMinutes ? "text-[23vw] md:text-[24vw]" : "text-[32vw] md:text-[24vw]",
+            hasThreeDigitMinutes
+              ? "text-[23vw] max-md:landscape:text-[17vw] md:text-[24vw]"
+              : "text-[32vw] max-md:landscape:text-[20vw] md:text-[24vw]",
             "font-black leading-none tracking-tighter animate-glow",
             "select-none transition-all duration-300",
             "text-black/40"
