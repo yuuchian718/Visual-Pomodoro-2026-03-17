@@ -8,6 +8,7 @@ interface TimerControlsProps {
   isFinished: boolean;
   sfxEnabled: boolean;
   musicEnabled: boolean;
+  canUseMusic: boolean;
   screenWakeLockEnabled: boolean;
   wakeLockSupported: boolean;
   onToggle: () => void;
@@ -23,6 +24,7 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
   isFinished,
   sfxEnabled,
   musicEnabled,
+  canUseMusic,
   screenWakeLockEnabled,
   wakeLockSupported,
   onToggle,
@@ -100,9 +102,12 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
 
         <button
           onClick={onToggleMusic}
+          title={canUseMusic ? "Toggle background music" : "Background music requires premium"}
           className={cn(
             "flex items-center gap-2 max-md:landscape:gap-1.5 px-4 max-md:landscape:px-3 py-2 max-md:landscape:py-1.5 rounded-full text-[10px] max-md:landscape:text-[9px] uppercase tracking-widest font-bold transition-all border backdrop-blur-sm",
-            musicEnabled ? "border-white/40 bg-white/5 text-white/90" : "border-blue-500/50 bg-blue-500/10 text-blue-400"
+            musicEnabled
+              ? "border-white/40 bg-white/5 text-white/90"
+              : "border-blue-500/50 bg-blue-500/10 text-blue-400"
           )}
         >
           {musicEnabled ? <Headphones className="h-3.5 w-3.5" /> : <HeadphoneOff className="h-3.5 w-3.5" />}

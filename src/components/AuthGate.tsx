@@ -2,7 +2,6 @@ import React from 'react';
 import {resolveStartupAccess, type AccessState} from '../lib/access';
 import {clearStoredLicenseToken, setStoredLicenseToken} from '../lib/license';
 import type {CommercialActivationResult} from './AuthPanel';
-import {LockScreen} from './LockScreen';
 
 interface AuthRenderProps {
   accessState: AccessState;
@@ -89,18 +88,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({children}) => {
         Loading access
       </div>
     );
-  }
-
-  if (accessState.isLocked) {
-    return (
-        <LockScreen
-          accessState={accessState}
-          onSaveLicenseToken={saveLicenseToken}
-          onClearLicenseToken={clearLicenseToken}
-          onRefreshAccess={refreshAccess}
-          onActivateCommercialLicenseKey={activateCommercialLicenseKey}
-        />
-      );
   }
 
   return (

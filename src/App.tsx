@@ -10,6 +10,7 @@ import {resolveBackgroundImage, storeBackgroundImage} from './lib/background-ima
 
 const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
+const DEFAULT_FREE_DURATION = 25;
 
 type WakeLockSentinelLike = {
   released: boolean;
@@ -68,6 +69,23 @@ export default function App({
       }
     }
   }, [isActive, bgMusicUrl, musicEnabled]);
+
+  React.useEffect(() => {
+    if (!accessState.canUseMusic) {
+      setMusicEnabled(false);
+    }
+  }, [accessState.canUseMusic]);
+
+  React.useEffect(() => {
+    if (accessState.isPremium) {
+      return;
+    }
+
+    if (!accessState.allowedBaseDurations.includes(duration)) {
+      setDuration(DEFAULT_FREE_DURATION);
+      reset(DEFAULT_FREE_DURATION);
+    }
+  }, [accessState.allowedBaseDurations, accessState.isPremium, duration, reset]);
 
   const releaseWakeLock = React.useCallback(async () => {
     const sentinel = wakeLockSentinelRef.current;
@@ -169,6 +187,10 @@ export default function App({
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!accessState.canUseBackgroundFeatures) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -186,6 +208,10 @@ export default function App({
   };
 
   const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!accessState.canUseMusic) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
@@ -207,6 +233,10 @@ export default function App({
   };
 
   const handleDurationChange = (d: number) => {
+    if (!accessState.isPremium && !accessState.allowedBaseDurations.includes(d)) {
+      return;
+    }
+
     setDuration(d);
     reset(d);
     setShowSettings(false);
@@ -238,6 +268,7 @@ export default function App({
             isFinished={isFinished}
             sfxEnabled={sfxEnabled}
             musicEnabled={musicEnabled}
+            canUseMusic={accessState.canUseMusic}
             onToggle={toggle}
             onReset={handleReset}
             onOpenSettings={() => setShowSettings(true)}
@@ -247,7 +278,12 @@ export default function App({
             onToggleScreenWakeLock={() => {
               void handleToggleScreenWakeLock();
             }}
-            onToggleMusic={() => setMusicEnabled(!musicEnabled)}
+            onToggleMusic={() => {
+              if (!accessState.canUseMusic) {
+                return;
+              }
+              setMusicEnabled(!musicEnabled);
+            }}
           />
         </div>
 
