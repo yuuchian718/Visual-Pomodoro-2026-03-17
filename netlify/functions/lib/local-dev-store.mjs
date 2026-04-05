@@ -65,6 +65,38 @@ export const createLocalJsonStore = (storeName) => ({
   },
 });
 
+const createLoggedStore = ({ storeName, backend, store }) => ({
+  async get(key, options = {}) {
+    try {
+      return await store.get(key, options);
+    } catch (error) {
+      console.error("[local-dev-store] store.get failed", {
+        backend,
+        storeName,
+        key: String(key),
+        errorName: error?.name || "UnknownError",
+        errorMessage: error?.message || String(error),
+      });
+      throw error;
+    }
+  },
+
+  async setJSON(key, value) {
+    try {
+      return await store.setJSON(key, value);
+    } catch (error) {
+      console.error("[local-dev-store] store.setJSON failed", {
+        backend,
+        storeName,
+        key: String(key),
+        errorName: error?.name || "UnknownError",
+        errorMessage: error?.message || String(error),
+      });
+      throw error;
+    }
+  },
+});
+
 const isMissingBlobsEnvironmentError = (error) =>
   error?.name === "MissingBlobsEnvironmentError" ||
   String(error?.message || "").includes("The environment has not been configured to use Netlify Blobs");
@@ -100,11 +132,35 @@ export const isProductionRuntime = () => getVisualPomodoroRuntimeContext() === "
 
 export const getStoreWithLocalFallback = (storeName) => {
   if (shouldForceLocalStore() || shouldUseLocalStoreInDev()) {
-    return createLocalJsonStore(storeName);
+    const reason = shouldForceLocalStore() ? "force-local" : "dev";
+    console.info("[local-dev-store] Using local JSON store", {
+      backend: "local-json",
+      storeName,
+      reason,
+      runtimeContext: getVisualPomodoroRuntimeContext(),
+    });
+    return createLoggedStore({
+      storeName,
+      backend: "local-json",
+      store: createLocalJsonStore(storeName),
+    });
   }
 
   try {
-    return getStore(storeName);
+    console.info("[local-dev-store] Using Netlify Blobs store", {
+      backend: "netlify-blobs",
+      storeName,
+      runtimeContext: getVisualPomodoroRuntimeContext(),
+      explicitContext:
+        normalizeRuntimeContext(process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT) ||
+        "missing",
+      hostedRuntime: isHostedNetlifyRuntime(),
+    });
+    return createLoggedStore({
+      storeName,
+      backend: "netlify-blobs",
+      store: getStore(storeName),
+    });
   } catch (error) {
     if (isHostedNetlifyRuntime() && isMissingBlobsEnvironmentError(error)) {
       console.error(
