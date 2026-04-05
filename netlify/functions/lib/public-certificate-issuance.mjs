@@ -53,6 +53,35 @@ export const issueCommercialCertificateForPublicRequest = async ({
   const existingIssue = await getPublicCertificateIssueByEmail(issueStore, normalizedEmail);
 
   if (existingIssue) {
+    const existingLicense = await getLicenseByKey(
+      licenseStore,
+      existingIssue.issuedCommercialCertificate,
+    );
+
+    if (!existingLicense) {
+      await createLicense(
+        licenseStore,
+        buildPublicCommercialLicenseRecord({
+          issueId: existingIssue.issueId,
+          commercialCertificate: existingIssue.issuedCommercialCertificate,
+          email: existingIssue.email,
+          nowIso: existingIssue.issuedAt,
+        }),
+      );
+
+      const storedLicense = await getLicenseByKey(
+        licenseStore,
+        existingIssue.issuedCommercialCertificate,
+      );
+
+      if (!storedLicense) {
+        return {
+          ok: false,
+          code: "LICENSE_WRITE_NOT_VISIBLE",
+        };
+      }
+    }
+
     return {
       ok: true,
       commercialCertificate: existingIssue.issuedCommercialCertificate,
