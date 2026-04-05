@@ -48,16 +48,20 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
         <button
           onClick={onToggle}
           className={cn(
-            "flex h-24 w-24 max-md:landscape:h-18 max-md:landscape:w-18 items-center justify-center rounded-full transition-all active:scale-90 shadow-2xl",
+            "relative flex h-24 w-24 max-md:landscape:h-18 max-md:landscape:w-18 items-center justify-center overflow-hidden rounded-full transition-all duration-200 active:scale-[0.96]",
             isActive 
-              ? "bg-red-500 hover:bg-red-600 shadow-red-500/20" 
-              : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+              ? "border-zinc-300/10 bg-[radial-gradient(circle_at_38%_30%,rgba(255,255,255,0.1),rgba(255,255,255,0.015)_34%,transparent_56%),linear-gradient(180deg,#ef4444_0%,#dc2626_62%,#b91c1c_100%)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06),0_10px_18px_rgba(0,0,0,0.18)] hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06),0_12px_20px_rgba(0,0,0,0.2)]"
+              : "border-zinc-300/10 bg-[radial-gradient(circle_at_38%_30%,rgba(255,255,255,0.11),rgba(255,255,255,0.015)_34%,transparent_56%),linear-gradient(180deg,#34d399_0%,#10b981_62%,#059669_100%)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06),0_10px_18px_rgba(0,0,0,0.18)] hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06),0_12px_20px_rgba(0,0,0,0.2)]"
           )}
         >
+          <span className="pointer-events-none absolute left-1/2 top-[5px] h-[7px] w-[2px] -translate-x-1/2 rounded-full bg-emerald-950/30" />
+          <span className="pointer-events-none absolute left-[calc(50%-7px)] top-[8px] h-[5px] w-[9px] rotate-[-28deg] rounded-full bg-emerald-950/16" />
+          <span className="pointer-events-none absolute left-[calc(50%-2px)] top-[8px] h-[5px] w-[9px] rotate-[28deg] rounded-full bg-emerald-950/16" />
+          <span className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_-6px_9px_rgba(0,0,0,0.13)]" />
           {isActive ? (
-            <Pause className="h-12 w-12 max-md:landscape:h-9 max-md:landscape:w-9 fill-white text-white" />
+            <Pause className="relative z-10 h-12 w-12 max-md:landscape:h-9 max-md:landscape:w-9 fill-white text-white" />
           ) : (
-            <Play className="ml-2 max-md:landscape:ml-1.5 h-12 w-12 max-md:landscape:h-9 max-md:landscape:w-9 fill-white text-white" />
+            <Play className="relative z-10 ml-2 max-md:landscape:ml-1.5 h-11 w-11 max-md:landscape:h-[2.1rem] max-md:landscape:w-[2.1rem] fill-white text-white" />
           )}
         </button>
 
