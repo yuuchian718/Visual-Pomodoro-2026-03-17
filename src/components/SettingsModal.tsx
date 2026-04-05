@@ -11,7 +11,7 @@ import {
   isDurationAllowed,
   isFeatureEnabled,
   shouldShowUpgradeEntry as shouldShowUpgradeEntryByAccess,
-} from '../../../koto-licensing-modules/modules/partial-unlock-foundation/core';
+} from '../lib/partial-unlock-core';
 
 export const parseCustomDurationInput = (value: string) => {
   const normalizedValue = value.trim();

@@ -10,7 +10,7 @@ import {
   applyForcedFreeMode,
   resolveEntitlementsFromAccess,
   type EntitlementState,
-} from '../../../koto-licensing-modules/modules/partial-unlock-foundation/core';
+} from './partial-unlock-core';
 
 export interface AccessState extends EntitlementState {
   deviceId: string;

@@ -7,7 +7,7 @@ import { SettingsModal } from './components/SettingsModal';
 import type {AccessState} from './lib/access';
 import type {CommercialActivationResult} from './components/AuthPanel';
 import {resolveBackgroundImage, storeBackgroundImage} from './lib/background-image';
-import {isDurationAllowed, isFeatureEnabled} from '../../koto-licensing-modules/modules/partial-unlock-foundation/core';
+import {isDurationAllowed, isFeatureEnabled} from './lib/partial-unlock-core';
 
 const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
@@ -49,6 +49,7 @@ export default function App({
   const [bgMusicName, setBgMusicName] = useState<string | null>(null);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(false);
   const [screenWakeLockRequested, setScreenWakeLockRequested] = useState(false);
   
@@ -57,7 +58,8 @@ export default function App({
   const audioRef = useRef<HTMLAudioElement>(null);
   const wakeLockSentinelRef = useRef<WakeLockSentinelLike | null>(null);
 
-  const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: sfxEnabled });
+  const effectiveSfxEnabled = sfxEnabled && !isMusicPlaying;
+  const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: effectiveSfxEnabled });
   const wakeLockSupported =
     typeof navigator !== 'undefined' && 'wakeLock' in (navigator as NavigatorWithWakeLock);
   const canUseMusic = isFeatureEnabled('music', accessState);
@@ -66,12 +68,41 @@ export default function App({
   React.useEffect(() => {
     if (audioRef.current) {
       if (isActive && bgMusicUrl && musicEnabled) {
-        audioRef.current.play().catch(() => {}); // Silent catch for production
+        audioRef.current.play()
+          .then(() => {
+            setIsMusicPlaying(true);
+          })
+          .catch(() => {
+            setIsMusicPlaying(false);
+          }); // Silent catch for production
       } else {
         audioRef.current.pause();
+        setIsMusicPlaying(false);
       }
     }
   }, [isActive, bgMusicUrl, musicEnabled]);
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    const handlePlay = () => setIsMusicPlaying(true);
+    const handlePause = () => setIsMusicPlaying(false);
+    const handleEnded = () => setIsMusicPlaying(false);
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [bgMusicUrl]);
 
   React.useEffect(() => {
     if (!canUseMusic) {
