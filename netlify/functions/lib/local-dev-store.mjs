@@ -70,6 +70,10 @@ const isMissingBlobsEnvironmentError = (error) =>
   String(error?.message || "").includes("The environment has not been configured to use Netlify Blobs");
 
 const normalizeRuntimeContext = (value) => String(value || "").trim().toLowerCase();
+const isHostedNetlifyRuntime = () =>
+  process.env.NETLIFY === "true" ||
+  String(process.env.URL || "").trim() !== "" ||
+  String(process.env.DEPLOY_URL || "").trim() !== "";
 const hasExplicitProductionContext = () =>
   normalizeRuntimeContext(process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT) ===
   "production";
@@ -83,11 +87,7 @@ export const getVisualPomodoroRuntimeContext = () => {
     return explicitContext;
   }
 
-  if (
-    process.env.NETLIFY === "true" ||
-    String(process.env.URL || "").trim() !== "" ||
-    String(process.env.DEPLOY_URL || "").trim() !== ""
-  ) {
+  if (isHostedNetlifyRuntime()) {
     return "production";
   }
 
@@ -106,6 +106,13 @@ export const getStoreWithLocalFallback = (storeName) => {
   try {
     return getStore(storeName);
   } catch (error) {
+    if (isHostedNetlifyRuntime() && isMissingBlobsEnvironmentError(error)) {
+      console.error(
+        `[local-dev-store] Netlify Blobs is unavailable in hosted runtime for "${storeName}". Refusing local fallback because it would be non-persistent across requests.`,
+      );
+      throw error;
+    }
+
     if (!hasExplicitProductionContext() && isMissingBlobsEnvironmentError(error)) {
       console.warn(
         `[local-dev-store] Falling back to local JSON store for "${storeName}" because Netlify Blobs is unavailable.`,
