@@ -101,7 +101,8 @@ const isMissingBlobsEnvironmentError = (error) =>
   error?.name === "MissingBlobsEnvironmentError" ||
   String(error?.message || "").includes("The environment has not been configured to use Netlify Blobs");
 
-const normalizeRuntimeContext = (value) => String(value || "").trim().toLowerCase();
+const normalizeEnvValue = (value) => String(value || "").trim();
+const normalizeRuntimeContext = (value) => normalizeEnvValue(value).toLowerCase();
 const isHostedNetlifyRuntime = () =>
   process.env.NETLIFY === "true" ||
   String(process.env.URL || "").trim() !== "" ||
