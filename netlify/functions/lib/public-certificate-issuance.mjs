@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import { generateCommercialCertificate } from "./commercial-certificate-generator.mjs";
-import { createLicense, getLicenseByKey } from "./license-store.mjs";
+import { createLicense, getLicenseByKey, getLicenseStoreName } from "./license-store.mjs";
 import {
   createPublicCertificateIssueRecord,
   getPublicCertificateIssueByEmail,
+  getPublicCertificateIssueStoreName,
   isValidPublicIssueEmail,
   normalizePublicIssueEmail,
 } from "./public-certificate-issue-store.mjs";
@@ -58,6 +59,16 @@ export const issueCommercialCertificateForPublicRequest = async ({
       existingIssue.issuedCommercialCertificate,
     );
 
+    console.info("[public-certificate-issuance] Reuse lookup", {
+      context: process.env.CONTEXT || "unknown",
+      licenseStoreName: getLicenseStoreName(),
+      issueStoreName: getPublicCertificateIssueStoreName(),
+      email: normalizedEmail,
+      issueId: existingIssue.issueId,
+      commercialCertificate: existingIssue.issuedCommercialCertificate,
+      licenseVisible: existingLicense !== null,
+    });
+
     if (!existingLicense) {
       await createLicense(
         licenseStore,
@@ -73,6 +84,16 @@ export const issueCommercialCertificateForPublicRequest = async ({
         licenseStore,
         existingIssue.issuedCommercialCertificate,
       );
+
+      console.info("[public-certificate-issuance] Recreated missing license record for reused issue", {
+        context: process.env.CONTEXT || "unknown",
+        licenseStoreName: getLicenseStoreName(),
+        issueStoreName: getPublicCertificateIssueStoreName(),
+        email: existingIssue.email,
+        issueId: existingIssue.issueId,
+        commercialCertificate: existingIssue.issuedCommercialCertificate,
+        licenseVisibleAfterRecreate: storedLicense !== null,
+      });
 
       if (!storedLicense) {
         return {
@@ -106,6 +127,16 @@ export const issueCommercialCertificateForPublicRequest = async ({
   );
 
   const storedLicense = await getLicenseByKey(licenseStore, commercialCertificate);
+
+  console.info("[public-certificate-issuance] New issue write result", {
+    context: process.env.CONTEXT || "unknown",
+    licenseStoreName: getLicenseStoreName(),
+    issueStoreName: getPublicCertificateIssueStoreName(),
+    email: normalizedEmail,
+    issueId,
+    commercialCertificate,
+    licenseVisibleAfterWrite: storedLicense !== null,
+  });
 
   if (!storedLicense) {
     return {

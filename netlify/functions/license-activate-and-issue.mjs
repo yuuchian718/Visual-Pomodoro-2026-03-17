@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { activateLicense } from "./license-activate.mjs";
 import { generatePermanentLicenseToken, normalizeDeviceId } from "./lib/formal-license-token.mjs";
 import { jsonResponse } from "./lib/license-ops.mjs";
-import { getLicenseStore } from "./lib/license-store.mjs";
+import { getLicenseStore, getLicenseStoreName, normalizeLicenseKey } from "./lib/license-store.mjs";
 
 dotenv.config({ path: ".env", quiet: true });
 
@@ -41,6 +41,15 @@ export const activateLicenseAndIssueFormalToken = async ({
   });
 
   if (!activationResult.body.ok) {
+    if (activationResult.body.error === "LICENSE_NOT_FOUND") {
+      console.warn("[license-activate-and-issue] LICENSE_NOT_FOUND", {
+        context: process.env.CONTEXT || "unknown",
+        licenseStoreName: getLicenseStoreName(),
+        licenseKey: normalizeLicenseKey(licenseKey),
+        deviceId: normalizedDeviceId,
+      });
+    }
+
     return {
       statusCode: activationResult.statusCode,
       body: buildFailureResponse(activationResult, normalizedDeviceId),
