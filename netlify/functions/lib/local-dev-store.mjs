@@ -130,6 +130,46 @@ const shouldForceLocalStore = () => process.env.VISUAL_POMODORO_FORCE_LOCAL_STOR
 const shouldUseLocalStoreInDev = () => getVisualPomodoroRuntimeContext() === "dev";
 export const isProductionRuntime = () => getVisualPomodoroRuntimeContext() === "production";
 
+const getExplicitBlobsConfig = () => {
+  const siteID = normalizeEnvValue(process.env.VISUAL_POMODORO_BLOBS_SITE_ID);
+  const token = normalizeEnvValue(process.env.VISUAL_POMODORO_BLOBS_TOKEN);
+
+  if (!siteID || !token) {
+    return null;
+  }
+
+  return { siteID, token };
+};
+
+const createNetlifyBlobsStore = (storeName) => {
+  const explicitConfig = getExplicitBlobsConfig();
+  const configMode = explicitConfig ? "explicit" : "runtime";
+
+  console.info("[local-dev-store] Attempting Netlify Blobs store", {
+    backend: "netlify-blobs",
+    storeName,
+    runtimeContext: getVisualPomodoroRuntimeContext(),
+    explicitContext:
+      normalizeRuntimeContext(process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT) ||
+      "missing",
+    hostedRuntime: isHostedNetlifyRuntime(),
+    configMode,
+  });
+
+  const store = explicitConfig
+    ? getStore(storeName, {
+        siteID: explicitConfig.siteID,
+        token: explicitConfig.token,
+      })
+    : getStore(storeName);
+
+  return createLoggedStore({
+    storeName,
+    backend: "netlify-blobs",
+    store,
+  });
+};
+
 export const getStoreWithLocalFallback = (storeName) => {
   if (shouldForceLocalStore() || shouldUseLocalStoreInDev()) {
     const reason = shouldForceLocalStore() ? "force-local" : "dev";
@@ -147,20 +187,7 @@ export const getStoreWithLocalFallback = (storeName) => {
   }
 
   try {
-    console.info("[local-dev-store] Using Netlify Blobs store", {
-      backend: "netlify-blobs",
-      storeName,
-      runtimeContext: getVisualPomodoroRuntimeContext(),
-      explicitContext:
-        normalizeRuntimeContext(process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT) ||
-        "missing",
-      hostedRuntime: isHostedNetlifyRuntime(),
-    });
-    return createLoggedStore({
-      storeName,
-      backend: "netlify-blobs",
-      store: getStore(storeName),
-    });
+    return createNetlifyBlobsStore(storeName);
   } catch (error) {
     if (isHostedNetlifyRuntime() && isMissingBlobsEnvironmentError(error)) {
       console.error(
@@ -173,7 +200,11 @@ export const getStoreWithLocalFallback = (storeName) => {
       console.warn(
         `[local-dev-store] Falling back to local JSON store for "${storeName}" because Netlify Blobs is unavailable.`,
       );
-      return createLocalJsonStore(storeName);
+      return createLoggedStore({
+        storeName,
+        backend: "local-json",
+        store: createLocalJsonStore(storeName),
+      });
     }
 
     throw error;
