@@ -46,6 +46,9 @@ export async function resolveStartupAccess(): Promise<AccessState> {
   const license = await getStoredLicenseStatus(deviceId);
 
   if (license.hasStoredToken) {
+    // Stored formal tokens are evaluated first. If browser-side validation fails,
+    // the app deliberately falls back to LOCKED and lets partial-unlock rules decide
+    // which free features remain visible.
     const resolved = resolveAccessState({
       hasStoredToken: true,
       isLicenseValid: license.isValid,

@@ -5,6 +5,8 @@ import path from "node:path";
 import { getStore } from "@netlify/blobs";
 
 const DEFAULT_LOCAL_STORE_DIR = path.join(os.tmpdir(), "visual-pomodoro-local-store");
+// Hosted Netlify runtimes must use a persistent backend for license-related data.
+// Falling back to local JSON is only allowed for explicit local/dev flows.
 const KNOWN_RUNTIME_CONTEXTS = new Set([
   "production",
   "deploy-preview",

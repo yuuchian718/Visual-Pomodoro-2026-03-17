@@ -1,6 +1,9 @@
 import {LICENSE_TOKEN_KEY} from './trial';
 import {normalizeDeviceId} from './device-id';
 
+// Frontend formal-license validation depends on the build-time public key.
+// If VITE_KOTO_PUBLIC_KEY_B64 is missing or mismatched, saved formal tokens will
+// parse but still fail validation after refresh.
 const LICENSE_PUBLIC_KEY_B64 = import.meta.env.VITE_KOTO_PUBLIC_KEY_B64 || '';
 
 export interface ParsedLicenseToken {

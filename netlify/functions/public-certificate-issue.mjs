@@ -108,17 +108,9 @@ export const createPublicCertificateIssueHandler =
     }
 
     try {
-      console.info("[public-certificate-issue] Route entered", {
-        context: process.env.CONTEXT || "unknown",
-        email: body.email,
-      });
-
       let issueStore;
       try {
         issueStore = issueStoreFactory();
-        console.info("[public-certificate-issue] issueStoreFactory succeeded", {
-          context: process.env.CONTEXT || "unknown",
-        });
       } catch (error) {
         console.error(
           "[public-certificate-issue] issueStoreFactory failed:",
@@ -130,9 +122,6 @@ export const createPublicCertificateIssueHandler =
       let licenseStore;
       try {
         licenseStore = licenseStoreFactory();
-        console.info("[public-certificate-issue] licenseStoreFactory succeeded", {
-          context: process.env.CONTEXT || "unknown",
-        });
       } catch (error) {
         console.error(
           "[public-certificate-issue] licenseStoreFactory failed:",

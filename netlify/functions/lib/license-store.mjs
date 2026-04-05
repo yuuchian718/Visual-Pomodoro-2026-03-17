@@ -148,6 +148,8 @@ export const getLicenseStoreName = () =>
     ? "visual-pomodoro-license-prod"
     : "visual-pomodoro-license-testing");
 
+// The formal token activation path and public certificate issuance path must read and
+// write the same store backend; only the store name may be overridden per environment.
 export const getLicenseStore = () => getStoreWithLocalFallback(getLicenseStoreName());
 
 const getLicenseKeyRecordKey = (licenseKey) =>

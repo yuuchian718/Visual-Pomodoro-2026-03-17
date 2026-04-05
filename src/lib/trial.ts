@@ -8,6 +8,10 @@ export const TRIAL_TOKEN_KEY = 'koto_trial_token';
 export const LICENSE_TOKEN_KEY = 'koto_license_token';
 export const TRIAL_DAYS = trialConfig.trialDays;
 
+// Trial state and formal-license state intentionally use separate keys:
+// trial values remain cached locally, while the formal token lives under
+// LICENSE_TOKEN_KEY and is validated by src/lib/license.ts.
+
 const TRIAL_BOOTSTRAP_ENDPOINT = '/.netlify/functions/trial';
 
 export interface TrialInitializationResult {

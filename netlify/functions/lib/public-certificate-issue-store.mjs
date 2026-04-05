@@ -161,6 +161,8 @@ export const getPublicCertificateIssueStoreName = () =>
     ? "visual-pomodoro-public-certificate-issue-prod"
     : "visual-pomodoro-public-certificate-issue-testing");
 
+// Public issuance records intentionally live beside the commercial license store so the
+// same hosted runtime configuration can be reused across issue + activate flows.
 export const getPublicCertificateIssueStore = () =>
   getStoreWithLocalFallback(getPublicCertificateIssueStoreName());
 

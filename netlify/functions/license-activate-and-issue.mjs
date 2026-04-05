@@ -28,6 +28,7 @@ export const activateLicenseAndIssueFormalToken = async ({
   store,
   licenseKey,
   deviceId,
+  // Formal token signing requires a valid base64 private key that decodes to at least 32 bytes.
   privateKeyB64 = process.env.KOTO_PRIVATE_KEY_B64,
   nowIso = new Date().toISOString(),
 }) => {

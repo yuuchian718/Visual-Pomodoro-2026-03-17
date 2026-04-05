@@ -70,6 +70,9 @@ export function isDurationAllowed(
   return entitlements.isPremium || entitlements.allowedBaseDurations.includes(minutes);
 }
 
+// In this project LOCKED does not mean "hide the entire app". It means premium
+// entitlements are removed and the host app may still expose a free/partial set.
+
 export function isFeatureEnabled(
   feature: FeatureKey,
   entitlements: Pick<
