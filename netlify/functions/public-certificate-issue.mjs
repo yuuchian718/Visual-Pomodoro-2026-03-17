@@ -108,9 +108,42 @@ export const createPublicCertificateIssueHandler =
     }
 
     try {
+      console.info("[public-certificate-issue] Route entered", {
+        context: process.env.CONTEXT || "unknown",
+        email: body.email,
+      });
+
+      let issueStore;
+      try {
+        issueStore = issueStoreFactory();
+        console.info("[public-certificate-issue] issueStoreFactory succeeded", {
+          context: process.env.CONTEXT || "unknown",
+        });
+      } catch (error) {
+        console.error(
+          "[public-certificate-issue] issueStoreFactory failed:",
+          error instanceof Error ? error.stack || error.message : error,
+        );
+        throw error;
+      }
+
+      let licenseStore;
+      try {
+        licenseStore = licenseStoreFactory();
+        console.info("[public-certificate-issue] licenseStoreFactory succeeded", {
+          context: process.env.CONTEXT || "unknown",
+        });
+      } catch (error) {
+        console.error(
+          "[public-certificate-issue] licenseStoreFactory failed:",
+          error instanceof Error ? error.stack || error.message : error,
+        );
+        throw error;
+      }
+
       const result = await issuePublicCommercialCertificateFn({
-        issueStore: issueStoreFactory(),
-        licenseStore: licenseStoreFactory(),
+        issueStore,
+        licenseStore,
         email: body.email,
       });
 

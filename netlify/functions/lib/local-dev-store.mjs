@@ -70,6 +70,9 @@ const isMissingBlobsEnvironmentError = (error) =>
   String(error?.message || "").includes("The environment has not been configured to use Netlify Blobs");
 
 const normalizeRuntimeContext = (value) => String(value || "").trim().toLowerCase();
+const hasExplicitProductionContext = () =>
+  normalizeRuntimeContext(process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT) ===
+  "production";
 
 export const getVisualPomodoroRuntimeContext = () => {
   const explicitContext = normalizeRuntimeContext(
@@ -103,7 +106,7 @@ export const getStoreWithLocalFallback = (storeName) => {
   try {
     return getStore(storeName);
   } catch (error) {
-    if (!isProductionRuntime() && isMissingBlobsEnvironmentError(error)) {
+    if (!hasExplicitProductionContext() && isMissingBlobsEnvironmentError(error)) {
       console.warn(
         `[local-dev-store] Falling back to local JSON store for "${storeName}" because Netlify Blobs is unavailable.`,
       );
