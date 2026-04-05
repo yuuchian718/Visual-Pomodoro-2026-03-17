@@ -5,6 +5,12 @@ import path from "node:path";
 import { getStore } from "@netlify/blobs";
 
 const DEFAULT_LOCAL_STORE_DIR = path.join(os.tmpdir(), "visual-pomodoro-local-store");
+const KNOWN_RUNTIME_CONTEXTS = new Set([
+  "production",
+  "deploy-preview",
+  "branch-deploy",
+  "dev",
+]);
 
 const getLocalStoreRootDir = () =>
   process.env.VISUAL_POMODORO_LOCAL_STORE_DIR || DEFAULT_LOCAL_STORE_DIR;
@@ -63,8 +69,31 @@ const isMissingBlobsEnvironmentError = (error) =>
   error?.name === "MissingBlobsEnvironmentError" ||
   String(error?.message || "").includes("The environment has not been configured to use Netlify Blobs");
 
+const normalizeRuntimeContext = (value) => String(value || "").trim().toLowerCase();
+
+export const getVisualPomodoroRuntimeContext = () => {
+  const explicitContext = normalizeRuntimeContext(
+    process.env.VISUAL_POMODORO_RUNTIME_CONTEXT || process.env.CONTEXT,
+  );
+
+  if (KNOWN_RUNTIME_CONTEXTS.has(explicitContext)) {
+    return explicitContext;
+  }
+
+  if (
+    process.env.NETLIFY === "true" ||
+    String(process.env.URL || "").trim() !== "" ||
+    String(process.env.DEPLOY_URL || "").trim() !== ""
+  ) {
+    return "production";
+  }
+
+  return "unknown";
+};
+
 const shouldForceLocalStore = () => process.env.VISUAL_POMODORO_FORCE_LOCAL_STORE === "1";
-const shouldUseLocalStoreInDev = () => process.env.CONTEXT === "dev";
+const shouldUseLocalStoreInDev = () => getVisualPomodoroRuntimeContext() === "dev";
+export const isProductionRuntime = () => getVisualPomodoroRuntimeContext() === "production";
 
 export const getStoreWithLocalFallback = (storeName) => {
   if (shouldForceLocalStore() || shouldUseLocalStoreInDev()) {
@@ -74,7 +103,7 @@ export const getStoreWithLocalFallback = (storeName) => {
   try {
     return getStore(storeName);
   } catch (error) {
-    if (process.env.CONTEXT !== "production" && isMissingBlobsEnvironmentError(error)) {
+    if (!isProductionRuntime() && isMissingBlobsEnvironmentError(error)) {
       console.warn(
         `[local-dev-store] Falling back to local JSON store for "${storeName}" because Netlify Blobs is unavailable.`,
       );

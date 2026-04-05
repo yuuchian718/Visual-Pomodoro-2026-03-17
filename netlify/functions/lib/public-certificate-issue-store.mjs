@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { getStoreWithLocalFallback } from "./local-dev-store.mjs";
+import { getStoreWithLocalFallback, isProductionRuntime } from "./local-dev-store.mjs";
 import { normalizeLicenseKey } from "./license-store.mjs";
 
 const ISSUE_STATUS = new Set(["ISSUED"]);
@@ -157,7 +157,7 @@ const summarizePublicCertificateIssue = (record) => ({
 
 export const getPublicCertificateIssueStoreName = () =>
   process.env.KOTO_PUBLIC_CERTIFICATE_ISSUE_STORE_NAME ||
-  (process.env.CONTEXT === "production"
+  (isProductionRuntime()
     ? "visual-pomodoro-public-certificate-issue-prod"
     : "visual-pomodoro-public-certificate-issue-testing");
 

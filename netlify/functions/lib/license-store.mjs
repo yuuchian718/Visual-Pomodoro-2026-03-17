@@ -1,4 +1,4 @@
-import { getStoreWithLocalFallback } from "./local-dev-store.mjs";
+import { getStoreWithLocalFallback, isProductionRuntime } from "./local-dev-store.mjs";
 
 /**
  * @typedef {{
@@ -143,9 +143,10 @@ export const parseStoredLicenseRecord = (record) => {
 };
 
 export const getLicenseStoreName = () =>
-  process.env.CONTEXT === "production"
+  process.env.VISUAL_POMODORO_LICENSE_STORE_NAME ||
+  (isProductionRuntime()
     ? "visual-pomodoro-license-prod"
-    : "visual-pomodoro-license-testing";
+    : "visual-pomodoro-license-testing");
 
 export const getLicenseStore = () => getStoreWithLocalFallback(getLicenseStoreName());
 
