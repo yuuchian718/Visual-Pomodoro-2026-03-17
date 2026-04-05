@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { generateCommercialCertificate } from "./commercial-certificate-generator.mjs";
-import { createLicense, getLicenseByKey, getLicenseStoreName } from "./license-store.mjs";
+import { createLicense, getLicenseByKey, getLicenseStoreName, saveLicense } from "./license-store.mjs";
 import {
   createPublicCertificateIssueRecord,
   getPublicCertificateIssueByEmail,
@@ -70,7 +70,7 @@ export const issueCommercialCertificateForPublicRequest = async ({
     });
 
     if (!existingLicense) {
-      await createLicense(
+      await saveLicense(
         licenseStore,
         buildPublicCommercialLicenseRecord({
           issueId: existingIssue.issueId,
