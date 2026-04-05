@@ -7,6 +7,7 @@ import { SettingsModal } from './components/SettingsModal';
 import type {AccessState} from './lib/access';
 import type {CommercialActivationResult} from './components/AuthPanel';
 import {resolveBackgroundImage, storeBackgroundImage} from './lib/background-image';
+import {isDurationAllowed, isFeatureEnabled} from '../../koto-licensing-modules/modules/partial-unlock-foundation/core';
 
 const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
@@ -59,6 +60,8 @@ export default function App({
   const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: sfxEnabled });
   const wakeLockSupported =
     typeof navigator !== 'undefined' && 'wakeLock' in (navigator as NavigatorWithWakeLock);
+  const canUseMusic = isFeatureEnabled('music', accessState);
+  const canUseBackgroundFeatures = isFeatureEnabled('backgroundFeatures', accessState);
 
   React.useEffect(() => {
     if (audioRef.current) {
@@ -71,30 +74,30 @@ export default function App({
   }, [isActive, bgMusicUrl, musicEnabled]);
 
   React.useEffect(() => {
-    if (!accessState.canUseMusic) {
+    if (!canUseMusic) {
       setMusicEnabled(false);
     }
-  }, [accessState.canUseMusic]);
+  }, [canUseMusic]);
 
   React.useEffect(() => {
-    if (accessState.canUseBackgroundFeatures) {
+    if (canUseBackgroundFeatures) {
       setBgImage(resolveBackgroundImage(DEFAULT_IMAGE));
       return;
     }
 
     setBgImage(DEFAULT_IMAGE);
-  }, [accessState.canUseBackgroundFeatures]);
+  }, [canUseBackgroundFeatures]);
 
   React.useEffect(() => {
     if (accessState.isPremium) {
       return;
     }
 
-    if (!accessState.allowedBaseDurations.includes(duration)) {
+    if (!isDurationAllowed(duration, accessState)) {
       setDuration(DEFAULT_FREE_DURATION);
       reset(DEFAULT_FREE_DURATION);
     }
-  }, [accessState.allowedBaseDurations, accessState.isPremium, duration, reset]);
+  }, [accessState, duration, reset]);
 
   const releaseWakeLock = React.useCallback(async () => {
     const sentinel = wakeLockSentinelRef.current;
@@ -196,7 +199,7 @@ export default function App({
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!accessState.canUseBackgroundFeatures) {
+    if (!canUseBackgroundFeatures) {
       return;
     }
 
@@ -217,7 +220,7 @@ export default function App({
   };
 
   const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!accessState.canUseMusic) {
+    if (!canUseMusic) {
       return;
     }
 
@@ -242,7 +245,7 @@ export default function App({
   };
 
   const handleDurationChange = (d: number) => {
-    if (!accessState.isPremium && !accessState.allowedBaseDurations.includes(d)) {
+    if (!isDurationAllowed(d, accessState)) {
       return;
     }
 
@@ -277,7 +280,7 @@ export default function App({
             isFinished={isFinished}
             sfxEnabled={sfxEnabled}
             musicEnabled={musicEnabled}
-            canUseMusic={accessState.canUseMusic}
+            canUseMusic={canUseMusic}
             onToggle={toggle}
             onReset={handleReset}
             onOpenSettings={() => setShowSettings(true)}
@@ -288,7 +291,7 @@ export default function App({
               void handleToggleScreenWakeLock();
             }}
             onToggleMusic={() => {
-              if (!accessState.canUseMusic) {
+              if (!canUseMusic) {
                 return;
               }
               setMusicEnabled(!musicEnabled);

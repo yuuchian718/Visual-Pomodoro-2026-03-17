@@ -1,11 +1,17 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Cherry, Lock, ArrowUpRight } from 'lucide-react';
+import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Timer, Lock, ArrowUpRight, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TickType, AlarmType } from '../lib/sounds';
 import type {AccessState} from '../lib/access';
 import {AuthPanel, type CommercialActivationResult} from './AuthPanel';
 import {getUpgradeUrl} from '../lib/upgrade';
+import {shareApp} from '../lib/share';
+import {
+  isDurationAllowed,
+  isFeatureEnabled,
+  shouldShowUpgradeEntry as shouldShowUpgradeEntryByAccess,
+} from '../../../koto-licensing-modules/modules/partial-unlock-foundation/core';
 
 export const parseCustomDurationInput = (value: string) => {
   const normalizedValue = value.trim();
@@ -63,13 +69,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isCustomDurationOpen, setIsCustomDurationOpen] = React.useState(false);
   const [customDurationInput, setCustomDurationInput] = React.useState('');
   const [customDurationError, setCustomDurationError] = React.useState<string | null>(null);
+  const [shareLabel, setShareLabel] = React.useState('Share App');
   const isPremium = accessState.isPremium;
-  const shouldShowUpgradeEntry = accessState.accessSource !== 'LICENSE';
-  const freeDurations = accessState.allowedBaseDurations;
+  const canUseCustomDuration = isFeatureEnabled('customDuration', accessState);
+  const canUseMusic = isFeatureEnabled('music', accessState);
+  const canUseBackgroundFeatures = isFeatureEnabled('backgroundFeatures', accessState);
+  const shouldShowUpgradeEntry = shouldShowUpgradeEntryByAccess(accessState);
   const upgradeUrl = getUpgradeUrl();
+  const parsedCustomDuration = parseCustomDurationInput(customDurationInput);
+  const hasValidCustomDuration = parsedCustomDuration !== null;
+
+  React.useEffect(() => {
+    if (shareLabel === 'Share App') {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShareLabel('Share App');
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [shareLabel]);
 
   const handleCustomDurationApply = () => {
-    const parsedMinutes = parseCustomDurationInput(customDurationInput);
+    const parsedMinutes = parsedCustomDuration;
     if (!parsedMinutes) {
       setCustomDurationError('Enter a whole number from 1 to 240.');
       return;
@@ -79,6 +104,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsCustomDurationOpen(false);
     setCustomDurationInput(String(parsedMinutes));
     onDurationChange(parsedMinutes);
+  };
+
+  const handleShare = async () => {
+    const result = await shareApp();
+
+    if (result === 'copied') {
+      setShareLabel('Link Copied');
+    }
   };
 
   return (
@@ -118,7 +151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="grid grid-cols-3 gap-3">
                   {durations.map(d => (
                     (() => {
-                      const isUnlocked = isPremium || freeDurations.includes(d);
+                      const isUnlocked = isDurationAllowed(d, accessState);
                       return (
                         <button
                           key={d}
@@ -148,7 +181,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!isPremium) {
+                      if (!canUseCustomDuration) {
                         return;
                       }
                       setIsCustomDurationOpen((open) => !open);
@@ -156,7 +189,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }}
                     className={cn(
                       "rounded-xl py-3 text-lg font-semibold transition-all border",
-                      isPremium
+                      canUseCustomDuration
                         ? isCustomDurationOpen
                           ? "bg-emerald-500 border-emerald-400/80 text-white"
                           : "bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300"
@@ -165,11 +198,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     <span className="inline-flex items-center gap-1.5">
                       Custom
-                      {!isPremium && <Lock className="h-3.5 w-3.5 text-zinc-500" />}
+                      {!canUseCustomDuration && <Lock className="h-3.5 w-3.5 text-zinc-500" />}
                     </span>
                   </button>
                 </div>
-                {!isPremium && (
+                {!canUseCustomDuration && (
                   <p className="mt-3 text-xs uppercase tracking-[0.24em] text-white/38">
                     Premium unlocks longer sessions and custom duration.
                   </p>
@@ -178,7 +211,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="mt-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03]">
-                        <Cherry className="h-4 w-4 text-emerald-300/80" />
+                        <Timer className="h-4 w-4 text-emerald-300/80" />
                       </div>
                       <input
                         type="text"
@@ -190,19 +223,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             setCustomDurationError(null);
                           }
                         }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleCustomDurationApply();
+                          }
+                        }}
                         placeholder="Enter 1–240 minutes"
                         className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
                       />
                       <button
                         type="button"
                         onClick={handleCustomDurationApply}
-                        className="rounded-xl border border-white/12 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.12]"
+                        className={cn(
+                          "rounded-xl px-4 py-3 text-sm font-semibold transition",
+                          hasValidCustomDuration
+                            ? "border border-emerald-400/70 bg-emerald-500 text-white shadow-[0_0_0_1px_rgba(74,222,128,0.15)] hover:bg-emerald-400"
+                            : "border border-white/12 bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
+                        )}
                       >
                         Apply
                       </button>
                     </div>
                     {customDurationError && (
                       <p className="mt-3 text-xs text-red-300/90">{customDurationError}</p>
+                    )}
+                    {!customDurationError && (
+                      <p className="mt-3 text-xs text-white/40">Press Enter or Apply</p>
                     )}
                   </div>
                 )}
@@ -216,14 +263,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex gap-4">
                   <button
                     onClick={() => {
-                      if (!accessState.canUseBackgroundFeatures) {
+                      if (!canUseBackgroundFeatures) {
                         return;
                       }
                       fileInputRef.current?.click();
                     }}
                     className={cn(
                       "flex flex-1 items-center justify-between gap-3 rounded-xl py-4 px-4 transition-all active:scale-[0.99] border border-dashed",
-                      accessState.canUseBackgroundFeatures
+                      canUseBackgroundFeatures
                         ? "bg-white/5 border-white/20 hover:bg-white/10"
                         : "bg-white/[0.035] border-white/10 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
                     )}
@@ -234,7 +281,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Upload Image
                       </span>
                     </span>
-                    {!accessState.canUseBackgroundFeatures && (
+                    {!canUseBackgroundFeatures && (
                       <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
                         <Lock className="h-3.5 w-3.5" />
                         Premium
@@ -249,7 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     accept="image/*"
                   />
                 </div>
-                {!accessState.canUseBackgroundFeatures && (
+                {!canUseBackgroundFeatures && (
                   <p className="mt-3 text-xs text-white/38">
                     Premium unlocks custom backgrounds
                   </p>
@@ -319,25 +366,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <button
                       onClick={() => {
-                        if (!accessState.canUseMusic) {
+                        if (!canUseMusic) {
                           return;
                         }
                         musicInputRef.current?.click();
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all active:scale-[0.99] border",
-                        accessState.canUseMusic
+                        canUseMusic
                           ? "bg-white/5 border-white/5 hover:bg-white/10"
                           : "bg-white/[0.035] border-white/8 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
                       )}
                     >
                       <span className="flex items-center gap-3 min-w-0">
-                        <Music2 className={cn("h-4 w-4 shrink-0", accessState.canUseMusic ? "text-blue-400" : "text-zinc-500")} />
-                        <span className={cn("text-sm truncate", accessState.canUseMusic ? "text-zinc-200" : "text-zinc-500")}>
+                        <Music2 className={cn("h-4 w-4 shrink-0", canUseMusic ? "text-blue-400" : "text-zinc-500")} />
+                        <span className={cn("text-sm truncate", canUseMusic ? "text-zinc-200" : "text-zinc-500")}>
                           {bgMusicName || "Upload Music File"}
                         </span>
                       </span>
-                      {accessState.canUseMusic || (
+                      {canUseMusic || (
                         <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
                           <Lock className="h-3.5 w-3.5" />
                           Premium
@@ -351,7 +398,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="hidden" 
                       accept="audio/*"
                     />
-                    {!accessState.canUseMusic && (
+                    {!canUseMusic && (
                       <p className="text-xs text-white/38">
                         Premium unlocks background music upload
                       </p>
@@ -384,9 +431,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
 
               <section className="space-y-4 rounded-3xl border border-white/8 bg-white/[0.04] p-3">
-                <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-300">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  Access & License
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-300">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    Access & License
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleShare();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/86 transition-all hover:bg-white/[0.12] hover:text-white active:scale-[0.99]"
+                  >
+                    <Share2 className="h-3.5 w-3.5 text-white/78" />
+                    {shareLabel}
+                  </button>
                 </div>
                 <AuthPanel
                   accessState={accessState}

@@ -6,16 +6,13 @@ import {
   resolveAccessState,
 } from './trial';
 import {getStoredLicenseStatus, LicenseValidationResult} from './license';
+import {
+  applyForcedFreeMode,
+  resolveEntitlementsFromAccess,
+  type EntitlementState,
+} from '../../../koto-licensing-modules/modules/partial-unlock-foundation/core';
 
-export interface AccessState {
-  accessSource: 'LICENSE' | 'TRIAL' | 'LOCKED';
-  isPremium: boolean;
-  isLocked: boolean;
-  isTrialActive: boolean;
-  allowedBaseDurations: number[];
-  canUseCustomDuration: boolean;
-  canUseMusic: boolean;
-  canUseBackgroundFeatures: boolean;
+export interface AccessState extends EntitlementState {
   deviceId: string;
   license: LicenseValidationResult;
   trial: TrialInitializationResult & {
@@ -24,26 +21,8 @@ export interface AccessState {
   };
 }
 
-const FREE_BASE_DURATIONS = [5, 15, 25];
 const FORCE_FREE_MODE_QUERY_KEY = 'forceFreeMode';
 const FORCE_FREE_MODE_STORAGE_KEY = 'koto_force_free_mode';
-
-const withEntitlements = <
-  T extends {
-    isPremium: boolean;
-    accessSource: 'LICENSE' | 'TRIAL' | 'LOCKED';
-    isLocked: boolean;
-    isTrialActive: boolean;
-  },
->(
-  resolved: T,
-) => ({
-  ...resolved,
-  allowedBaseDurations: FREE_BASE_DURATIONS,
-  canUseCustomDuration: resolved.isPremium,
-  canUseMusic: resolved.isPremium,
-  canUseBackgroundFeatures: resolved.isPremium,
-});
 
 const shouldForceFreeModeInDev = () => {
   if (!import.meta.env.DEV || typeof window === 'undefined') {
@@ -62,18 +41,6 @@ const shouldForceFreeModeInDev = () => {
   }
 };
 
-const toForcedFreeAccessState = (accessState: AccessState): AccessState => ({
-  ...accessState,
-  accessSource: 'LOCKED',
-  isPremium: false,
-  isLocked: false,
-  isTrialActive: false,
-  allowedBaseDurations: FREE_BASE_DURATIONS,
-  canUseCustomDuration: false,
-  canUseMusic: false,
-  canUseBackgroundFeatures: false,
-});
-
 export async function resolveStartupAccess(): Promise<AccessState> {
   const deviceId = getDeviceId();
   const license = await getStoredLicenseStatus(deviceId);
@@ -87,8 +54,8 @@ export async function resolveStartupAccess(): Promise<AccessState> {
 
     const trialState = getTrialState();
 
-    const accessState = {
-      ...withEntitlements(resolved),
+    const accessState: AccessState = {
+      ...resolveEntitlementsFromAccess(resolved),
       deviceId,
       license,
       trial: {
@@ -102,7 +69,12 @@ export async function resolveStartupAccess(): Promise<AccessState> {
       },
     };
 
-    return shouldForceFreeModeInDev() ? toForcedFreeAccessState(accessState) : accessState;
+    return shouldForceFreeModeInDev()
+      ? {
+          ...accessState,
+          ...applyForcedFreeMode(accessState),
+        }
+      : accessState;
   }
 
   const trial = await ensureTrialInitialized(deviceId);
@@ -112,8 +84,8 @@ export async function resolveStartupAccess(): Promise<AccessState> {
     isTrialAvailable: trial.isTrialValid,
   });
 
-  const accessState = {
-    ...withEntitlements(resolved),
+  const accessState: AccessState = {
+    ...resolveEntitlementsFromAccess(resolved),
     deviceId,
     license,
     trial: {
@@ -123,5 +95,10 @@ export async function resolveStartupAccess(): Promise<AccessState> {
     },
   };
 
-  return shouldForceFreeModeInDev() ? toForcedFreeAccessState(accessState) : accessState;
+  return shouldForceFreeModeInDev()
+    ? {
+        ...accessState,
+        ...applyForcedFreeMode(accessState),
+      }
+    : accessState;
 }
