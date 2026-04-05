@@ -1,5 +1,7 @@
 # Commercial Certificate Claim Backend V1
 
+> Legacy note: this document describes the older `claimToken + email` claim flow. The current customer-facing path now uses the shared public-link instant issuance flow; this file is kept only for compatibility-chain and historical reference.
+
 ## What Changed
 
 This change adds the smallest public backend claim flow for commercial certificate retrieval.
