@@ -158,7 +158,7 @@
 
       table {
         width: 100%;
-        table-layout: fixed;
+        min-width: 1120px;
         border-collapse: collapse;
         background: #fcfdfc;
         border: 1px solid rgba(15, 23, 42, 0.08);
@@ -169,10 +169,10 @@
       th,
       td {
         text-align: left;
-        padding: 14px 12px;
+        padding: 11px 14px;
         border-bottom: 1px solid rgba(15, 23, 42, 0.08);
         font-size: 13px;
-        vertical-align: top;
+        vertical-align: middle;
       }
 
       th {
@@ -189,39 +189,48 @@
 
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        word-break: break-all;
+        white-space: nowrap;
       }
 
       .cell-copy {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 9px;
+        min-width: 0;
       }
 
       .cell-copy > span,
       .cell-copy > code {
         min-width: 0;
         flex: 1 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .col-email {
-        width: 34%;
+        width: 35%;
       }
 
       .col-certificate {
-        width: 28%;
+        width: 25%;
       }
 
       .col-issued-at {
-        width: 18%;
+        width: 15%;
+        white-space: nowrap;
       }
 
       .col-status {
         width: 10%;
       }
 
+      .col-operator-status {
+        width: 12%;
+      }
+
       .col-issue-id {
-        width: 10%;
+        width: 7%;
       }
 
       .empty {
@@ -229,11 +238,90 @@
         color: rgba(17, 24, 39, 0.6);
       }
 
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 88px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .status-pill.pending {
+        background: #fff7ed;
+        color: #9a3412;
+      }
+
+      .status-pill.imported {
+        background: #ecfdf3;
+        color: #166534;
+      }
+
+      .mark-button {
+        padding: 5px 9px;
+        border-radius: 10px;
+        border: 1px solid rgba(22, 101, 52, 0.2);
+        background: #edf7ef;
+        color: #166534;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .mark-button:hover {
+        background: #e3f2e7;
+      }
+
       .hint {
         margin-top: -2px;
         margin-bottom: 18px;
         font-size: 13px;
         color: rgba(17, 24, 39, 0.58);
+      }
+
+      .select-checkbox {
+        width: 16px;
+        height: 16px;
+        accent-color: #166534;
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+
+      .operator-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
+
+      .email-cell {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .issue-id-truncated {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .header-select {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .table-scroll {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 2px;
       }
     </style>
   </head>
@@ -258,7 +346,7 @@
             autocomplete="off"
           />
           <button id="load-button" class="primary" type="button">Load Recent Records</button>
-          <button id="export-emails-button" class="secondary" type="button">Export Emails</button>
+          <button id="export-emails-button" class="secondary" type="button">Export Selected</button>
           <button id="clear-secret-button" class="ghost" type="button">Clear Saved Secret</button>
         </div>
         <div class="hint">
@@ -279,18 +367,26 @@
 
         <div id="status" class="status" aria-live="polite"></div>
 
-        <table id="issues-table" hidden>
-          <thead>
-            <tr>
-              <th class="col-email">Email</th>
-              <th class="col-certificate">Commercial Certificate</th>
-              <th class="col-issued-at">Issued At</th>
-              <th class="col-status">Status</th>
-              <th class="col-issue-id">Issue ID</th>
-            </tr>
-          </thead>
-          <tbody id="issues-body"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table id="issues-table" hidden>
+            <thead>
+              <tr>
+                <th class="col-email">
+                  <label class="header-select">
+                    <input id="select-all-issues" class="select-checkbox" type="checkbox" aria-label="Select all issues" />
+                    <span>Email</span>
+                  </label>
+                </th>
+                <th class="col-certificate">Commercial Certificate</th>
+                <th class="col-issued-at">Issued At</th>
+                <th class="col-status">Status</th>
+                <th class="col-operator-status">Operator</th>
+                <th class="col-issue-id">Issue ID</th>
+              </tr>
+            </thead>
+            <tbody id="issues-body"></tbody>
+          </table>
+        </div>
 
         <div id="empty-state" class="empty" hidden>No recent public issue records.</div>
       </section>
@@ -308,7 +404,9 @@
       const tableEl = document.getElementById('issues-table');
       const bodyEl = document.getElementById('issues-body');
       const emptyEl = document.getElementById('empty-state');
+      const selectAllIssuesEl = document.getElementById('select-all-issues');
       let currentIssues = [];
+      const selectedIssueIds = new Set();
 
       const setStatus = (message, type = '') => {
         statusEl.textContent = message;
@@ -384,10 +482,19 @@
         `;
       };
 
-      const renderCodeValue = (value) => {
-        const safeValue = escapeHtml(value);
+      const renderIssueIdValue = (value) => {
+        const rawValue = String(value || '');
+        const safeValue = escapeHtml(rawValue);
+        const shortenedValue =
+          rawValue.length > 18
+            ? `${rawValue.slice(0, 8)}...${rawValue.slice(-6)}`
+            : rawValue;
+        const safeShortenedValue = escapeHtml(shortenedValue);
         return `
-          <code>${safeValue}</code>
+          <div class="cell-copy">
+            <code class="issue-id-truncated" title="${safeValue}">${safeShortenedValue}</code>
+            <button class="copy-button" type="button" data-copy="${safeValue}">Copy</button>
+          </div>
         `;
       };
 
@@ -407,10 +514,15 @@
       };
 
       const exportCurrentEmails = () => {
-        const uniqueEmails = [...new Set(currentIssues.map((issue) => String(issue.email || '').trim()).filter(Boolean))];
+        const uniqueEmails = [...new Set(
+          currentIssues
+            .filter((issue) => selectedIssueIds.has(issue.issueId))
+            .map((issue) => String(issue.email || '').trim())
+            .filter(Boolean),
+        )];
 
         if (!uniqueEmails.length) {
-          setStatus('No emails available to export.', 'error');
+          setStatus('No selected emails to export.', 'error');
           return;
         }
 
@@ -430,6 +542,36 @@
         setStatus(`Exported ${uniqueEmails.length} unique email${uniqueEmails.length === 1 ? '' : 's'}.`);
       };
 
+      const renderOperatorStatus = (issue) => {
+        const operatorStatus = String(issue.operatorStatus || 'PENDING').toUpperCase();
+
+        if (operatorStatus === 'IMPORTED') {
+          const importedAt = issue.importedAt ? ` title="${escapeHtml(issue.importedAt)}"` : '';
+          return `<span class="status-pill imported"${importedAt}>Imported</span>`;
+        }
+
+        return `
+          <div class="operator-cell">
+            <span class="status-pill pending">Pending</span>
+            <button class="mark-button" type="button" data-mark-imported="${escapeHtml(issue.issueId || '')}">
+              Mark Imported
+            </button>
+          </div>
+        `;
+      };
+
+      const syncSelectAllCheckbox = () => {
+        if (!currentIssues.length) {
+          selectAllIssuesEl.checked = false;
+          selectAllIssuesEl.indeterminate = false;
+          return;
+        }
+
+        const selectedCount = currentIssues.filter((issue) => selectedIssueIds.has(issue.issueId)).length;
+        selectAllIssuesEl.checked = selectedCount === currentIssues.length;
+        selectAllIssuesEl.indeterminate = selectedCount > 0 && selectedCount < currentIssues.length;
+      };
+
       const renderIssues = (issues) => {
         currentIssues = issues;
         bodyEl.innerHTML = '';
@@ -437,6 +579,7 @@
         if (!issues.length) {
           tableEl.hidden = true;
           emptyEl.hidden = false;
+          syncSelectAllCheckbox();
           return;
         }
 
@@ -444,15 +587,73 @@
         tableEl.hidden = false;
 
         for (const issue of issues) {
+          const isSelected = selectedIssueIds.has(issue.issueId);
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td class="col-email">${renderCopyValue(issue.email || '')}</td>
+            <td class="col-email">
+              <div class="email-cell">
+                <input
+                  class="select-checkbox"
+                  type="checkbox"
+                  data-select-issue="${escapeHtml(issue.issueId || '')}"
+                  aria-label="Select ${escapeHtml(issue.email || issue.issueId || 'issue')}"
+                  ${isSelected ? 'checked' : ''}
+                />
+                ${renderCopyValue(issue.email || '')}
+              </div>
+            </td>
             <td class="col-certificate">${renderCopyCodeValue(issue.issuedCommercialCertificate || '')}</td>
             <td class="col-issued-at" title="${escapeHtml(issue.issuedAt || '')}">${escapeHtml(formatIssuedAt(issue.issuedAt || ''))}</td>
             <td class="col-status">${issue.issueStatus || ''}</td>
-            <td class="col-issue-id">${renderCodeValue(issue.issueId || '')}</td>
+            <td class="col-operator-status">${renderOperatorStatus(issue)}</td>
+            <td class="col-issue-id">${renderIssueIdValue(issue.issueId || '')}</td>
           `;
           bodyEl.appendChild(row);
+        }
+
+        syncSelectAllCheckbox();
+      };
+
+      const markIssueImported = async (issueId) => {
+        const secret = secretInput.value.trim();
+
+        if (!secret) {
+          setStatus('Operator secret is required.', 'error');
+          return;
+        }
+
+        saveSecret(secret);
+        setStatus('Marking record as imported...');
+
+        try {
+          const response = await fetch('/.netlify/functions/public-certificate-issue-mark', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-license-operator-secret': secret,
+            },
+            body: JSON.stringify({ issueId }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data && data.ok === true && data.issue) {
+            currentIssues = currentIssues.map((issue) =>
+              issue.issueId === data.issue.issueId ? data.issue : issue,
+            );
+            renderIssues(currentIssues);
+            setStatus('Marked record as imported.');
+            return;
+          }
+
+          if (data && (data.error === 'OPERATOR_SECRET_INVALID' || data.error === 'OPERATOR_SECRET_REQUIRED')) {
+            setStatus('Operator secret is invalid or missing.', 'error');
+            return;
+          }
+
+          setStatus('Unable to mark record as imported.', 'error');
+        } catch {
+          setStatus('Unable to mark record as imported.', 'error');
         }
       };
 
@@ -550,9 +751,45 @@
       });
 
       bodyEl.addEventListener('click', async (event) => {
+        const markButton = event.target.closest('[data-mark-imported]');
+        if (markButton) {
+          await markIssueImported(markButton.getAttribute('data-mark-imported') || '');
+          return;
+        }
+
         const button = event.target.closest('[data-copy]');
         if (!button) return;
         await copyText(button, button.getAttribute('data-copy') || '');
+      });
+
+      bodyEl.addEventListener('change', (event) => {
+        const checkbox = event.target.closest('[data-select-issue]');
+        if (!checkbox) return;
+
+        const issueId = checkbox.getAttribute('data-select-issue') || '';
+        if (!issueId) return;
+
+        if (checkbox.checked) {
+          selectedIssueIds.add(issueId);
+        } else {
+          selectedIssueIds.delete(issueId);
+        }
+
+        syncSelectAllCheckbox();
+      });
+
+      selectAllIssuesEl.addEventListener('change', () => {
+        if (selectAllIssuesEl.checked) {
+          currentIssues.forEach((issue) => {
+            selectedIssueIds.add(issue.issueId);
+          });
+        } else {
+          currentIssues.forEach((issue) => {
+            selectedIssueIds.delete(issue.issueId);
+          });
+        }
+
+        renderIssues(currentIssues);
       });
 
       exportEmailsButton.addEventListener('click', () => {
