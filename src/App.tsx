@@ -288,7 +288,7 @@ export default function App({
   const { minutes, seconds } = formatTime();
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black font-sans text-white">
+    <div className="relative min-h-screen h-dvh w-full overflow-hidden bg-black font-sans text-white">
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
