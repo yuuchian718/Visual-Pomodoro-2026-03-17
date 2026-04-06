@@ -4,6 +4,7 @@ import { getStoreWithLocalFallback, isProductionRuntime } from "./local-dev-stor
 import { normalizeLicenseKey } from "./license-store.mjs";
 
 const ISSUE_STATUS = new Set(["ISSUED"]);
+const OPERATOR_STATUS = new Set(["PENDING", "IMPORTED"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RECENT_PUBLIC_CERTIFICATE_ISSUES_KEY = "public-certificate-issue:recent";
 
@@ -28,6 +29,8 @@ const parseStoredPublicCertificateIssueRecord = (record) => {
   const issuedCommercialCertificate = normalizeLicenseKey(record.issuedCommercialCertificate);
   const issuedAt = String(record.issuedAt || "").trim();
   const issueStatus = String(record.issueStatus || "").trim().toUpperCase();
+  const operatorStatus = String(record.operatorStatus || "PENDING").trim().toUpperCase();
+  const importedAt = record.importedAt == null ? null : String(record.importedAt || "").trim();
 
   if (!issueId) {
     throw new Error("Public certificate issue record is missing issueId");
@@ -49,12 +52,22 @@ const parseStoredPublicCertificateIssueRecord = (record) => {
     throw new Error("Public certificate issue record has invalid issueStatus");
   }
 
+  if (!OPERATOR_STATUS.has(operatorStatus)) {
+    throw new Error("Public certificate issue record has invalid operatorStatus");
+  }
+
+  if (importedAt !== null && !isIsoDateString(importedAt)) {
+    throw new Error("Public certificate issue record has invalid importedAt");
+  }
+
   return {
     issueId,
     email,
     issuedCommercialCertificate,
     issuedAt,
     issueStatus,
+    operatorStatus,
+    importedAt,
   };
 };
 
@@ -153,6 +166,8 @@ const summarizePublicCertificateIssue = (record) => ({
   issuedCommercialCertificate: record.issuedCommercialCertificate,
   issuedAt: record.issuedAt,
   issueStatus: record.issueStatus,
+  operatorStatus: record.operatorStatus,
+  importedAt: record.importedAt,
 });
 
 export const getPublicCertificateIssueStoreName = () =>
@@ -173,11 +188,31 @@ export const createPublicCertificateIssueRecord = async (store, record) => {
     issuedCommercialCertificate: record?.issuedCommercialCertificate,
     issuedAt: record?.issuedAt,
     issueStatus: record?.issueStatus || "ISSUED",
+    operatorStatus: record?.operatorStatus || "PENDING",
+    importedAt: record?.importedAt ?? null,
   });
   const existing = await getPublicCertificateIssueById(store, parsedRecord.issueId);
 
   if (existing) {
     throw new Error("Public certificate issue record already exists");
+  }
+
+  await store.setJSON(getPublicCertificateIssueKey(parsedRecord.issueId), parsedRecord);
+  await savePublicCertificateIssueEmailIndex(store, {
+    email: parsedRecord.email,
+    issueId: parsedRecord.issueId,
+  });
+  await upsertRecentPublicCertificateIssuesIndex(store, parsedRecord.issueId);
+
+  return parsedRecord;
+};
+
+export const updatePublicCertificateIssueRecord = async (store, record) => {
+  const parsedRecord = parseStoredPublicCertificateIssueRecord(record);
+  const existing = await getPublicCertificateIssueById(store, parsedRecord.issueId);
+
+  if (!existing) {
+    throw new Error("Public certificate issue record does not exist");
   }
 
   await store.setJSON(getPublicCertificateIssueKey(parsedRecord.issueId), parsedRecord);
