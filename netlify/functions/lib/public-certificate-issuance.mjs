@@ -3,16 +3,26 @@ import { randomUUID } from "node:crypto";
 import { generateCommercialCertificate } from "./commercial-certificate-generator.mjs";
 import { createLicense, getLicenseByKey, getLicenseStoreName, saveLicense } from "./license-store.mjs";
 import {
+  createPublicCertificateDeviceClaimRecord,
+  getPublicCertificateDeviceClaimByDeviceId,
+  getPublicCertificateDeviceClaimStoreName,
+  isValidPublicIssueDeviceId,
+  normalizePublicIssueDeviceId,
+} from "./public-certificate-device-claim-store.mjs";
+import {
   createPublicCertificateIssueRecord,
   getPublicCertificateIssueByEmail,
   getPublicCertificateIssueStoreName,
   isValidPublicIssueEmail,
+  isValidPublicIssueOrderId,
   normalizePublicIssueEmail,
 } from "./public-certificate-issue-store.mjs";
 
 export const buildPublicCommercialLicenseRecord = ({
   issueId,
   commercialCertificate,
+  name,
+  orderId,
   email,
   nowIso,
 }) => ({
@@ -30,6 +40,8 @@ export const buildPublicCommercialLicenseRecord = ({
     source: "public-certificate-issue",
     publicIssue: true,
     issueId,
+    name,
+    orderId,
     email,
   },
   createdAt: nowIso,
@@ -38,22 +50,44 @@ export const buildPublicCommercialLicenseRecord = ({
 
 export const issueCommercialCertificateForPublicRequest = async ({
   issueStore,
+  deviceClaimStore,
   licenseStore,
+  deviceId,
+  name,
+  orderId,
   email,
   nowIso = new Date().toISOString(),
 }) => {
+  const normalizedDeviceId = normalizePublicIssueDeviceId(deviceId);
+  const normalizedName = String(name || "").trim();
+  const normalizedOrderId = String(orderId || "").trim();
   const normalizedEmail = normalizePublicIssueEmail(email);
 
-  if (!isValidPublicIssueEmail(normalizedEmail)) {
+  if (
+    !normalizedName ||
+    !isValidPublicIssueOrderId(normalizedOrderId) ||
+    !isValidPublicIssueEmail(normalizedEmail) ||
+    !isValidPublicIssueDeviceId(normalizedDeviceId)
+  ) {
     return {
       ok: false,
-      code: "INVALID_EMAIL",
+      code: !normalizedName
+        ? "INVALID_NAME"
+        : !isValidPublicIssueOrderId(normalizedOrderId)
+          ? "INVALID_ORDER_ID"
+        : !isValidPublicIssueEmail(normalizedEmail)
+          ? "INVALID_EMAIL"
+          : "INVALID_DEVICE_ID",
     };
   }
 
   const existingIssue = await getPublicCertificateIssueByEmail(issueStore, normalizedEmail);
 
   if (existingIssue) {
+    const existingDeviceClaim = await getPublicCertificateDeviceClaimByDeviceId(
+      deviceClaimStore,
+      normalizedDeviceId,
+    );
     const existingLicense = await getLicenseByKey(
       licenseStore,
       existingIssue.issuedCommercialCertificate,
@@ -65,6 +99,8 @@ export const issueCommercialCertificateForPublicRequest = async ({
         buildPublicCommercialLicenseRecord({
           issueId: existingIssue.issueId,
           commercialCertificate: existingIssue.issuedCommercialCertificate,
+          name: existingIssue.name,
+          orderId: existingIssue.orderId,
           email: existingIssue.email,
           nowIso: existingIssue.issuedAt,
         }),
@@ -83,13 +119,74 @@ export const issueCommercialCertificateForPublicRequest = async ({
       }
     }
 
+    if (!existingDeviceClaim) {
+      await createPublicCertificateDeviceClaimRecord(deviceClaimStore, {
+        deviceId: normalizedDeviceId,
+        issueId: existingIssue.issueId,
+        name: existingIssue.name || normalizedName,
+        orderId: existingIssue.orderId || normalizedOrderId,
+        email: existingIssue.email,
+        issuedCommercialCertificate: existingIssue.issuedCommercialCertificate,
+        issuedAt: existingIssue.issuedAt,
+      });
+    }
+
     return {
       ok: true,
       commercialCertificate: existingIssue.issuedCommercialCertificate,
+      name: existingIssue.name,
       email: existingIssue.email,
       issuedAt: existingIssue.issuedAt,
       reused: true,
       issueId: existingIssue.issueId,
+    };
+  }
+
+  const existingDeviceClaim = await getPublicCertificateDeviceClaimByDeviceId(
+    deviceClaimStore,
+    normalizedDeviceId,
+  );
+
+  if (existingDeviceClaim) {
+    const existingLicense = await getLicenseByKey(
+      licenseStore,
+      existingDeviceClaim.issuedCommercialCertificate,
+    );
+
+    if (!existingLicense) {
+      await saveLicense(
+        licenseStore,
+        buildPublicCommercialLicenseRecord({
+          issueId: existingDeviceClaim.issueId,
+          commercialCertificate: existingDeviceClaim.issuedCommercialCertificate,
+          name: existingDeviceClaim.name,
+          orderId: existingDeviceClaim.orderId,
+          email: existingDeviceClaim.email,
+          nowIso: existingDeviceClaim.issuedAt,
+        }),
+      );
+
+      const storedLicense = await getLicenseByKey(
+        licenseStore,
+        existingDeviceClaim.issuedCommercialCertificate,
+      );
+
+      if (!storedLicense) {
+        return {
+          ok: false,
+          code: "LICENSE_WRITE_NOT_VISIBLE",
+        };
+      }
+    }
+
+    return {
+      ok: true,
+      commercialCertificate: existingDeviceClaim.issuedCommercialCertificate,
+      name: existingDeviceClaim.name,
+      email: existingDeviceClaim.email,
+      issuedAt: existingDeviceClaim.issuedAt,
+      reused: true,
+      issueId: existingDeviceClaim.issueId,
     };
   }
 
@@ -98,12 +195,14 @@ export const issueCommercialCertificateForPublicRequest = async ({
 
   await createLicense(
     licenseStore,
-    buildPublicCommercialLicenseRecord({
-      issueId,
-      commercialCertificate,
-      email: normalizedEmail,
-      nowIso,
-    }),
+      buildPublicCommercialLicenseRecord({
+        issueId,
+        commercialCertificate,
+        name: normalizedName,
+        orderId: normalizedOrderId,
+        email: normalizedEmail,
+        nowIso,
+      }),
   );
 
   const storedLicense = await getLicenseByKey(licenseStore, commercialCertificate);
@@ -117,15 +216,28 @@ export const issueCommercialCertificateForPublicRequest = async ({
 
   const issueRecord = await createPublicCertificateIssueRecord(issueStore, {
     issueId,
+    name: normalizedName,
+    orderId: normalizedOrderId,
     email: normalizedEmail,
     issuedCommercialCertificate: commercialCertificate,
     issuedAt: nowIso,
     issueStatus: "ISSUED",
   });
 
+  await createPublicCertificateDeviceClaimRecord(deviceClaimStore, {
+    deviceId: normalizedDeviceId,
+    issueId: issueRecord.issueId,
+    name: issueRecord.name,
+    orderId: issueRecord.orderId,
+    email: issueRecord.email,
+    issuedCommercialCertificate: issueRecord.issuedCommercialCertificate,
+    issuedAt: issueRecord.issuedAt,
+  });
+
   return {
     ok: true,
     commercialCertificate: issueRecord.issuedCommercialCertificate,
+    name: issueRecord.name,
     email: issueRecord.email,
     issuedAt: issueRecord.issuedAt,
     reused: false,

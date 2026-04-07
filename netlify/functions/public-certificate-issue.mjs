@@ -1,9 +1,15 @@
 import { issueCommercialCertificateForPublicRequest } from "./lib/public-certificate-issuance.mjs";
+import {
+  getPublicCertificateDeviceClaimStore,
+  isValidPublicIssueDeviceId,
+} from "./lib/public-certificate-device-claim-store.mjs";
 import { getLicenseStore } from "./lib/license-store.mjs";
 import { jsonResponse } from "./lib/license-ops.mjs";
 import {
   getPublicCertificateIssueStore,
   isValidPublicIssueEmail,
+  isValidPublicIssueName,
+  isValidPublicIssueOrderId,
 } from "./lib/public-certificate-issue-store.mjs";
 
 const INTERNAL_ERROR_BODY = {
@@ -51,13 +57,21 @@ const parseClassicEventBody = (event) => {
 
 export const issuePublicCommercialCertificate = async ({
   issueStore,
+  deviceClaimStore,
   licenseStore,
+  deviceId,
+  name,
+  orderId,
   email,
   issuedAt = new Date().toISOString(),
 }) =>
   issueCommercialCertificateForPublicRequest({
     issueStore,
+    deviceClaimStore,
     licenseStore,
+    deviceId,
+    name,
+    orderId,
     email,
     nowIso: issuedAt,
   });
@@ -65,6 +79,7 @@ export const issuePublicCommercialCertificate = async ({
 export const createPublicCertificateIssueHandler =
   ({
     issueStoreFactory = getPublicCertificateIssueStore,
+    deviceClaimStoreFactory = getPublicCertificateDeviceClaimStore,
     licenseStoreFactory = getLicenseStore,
     issuePublicCommercialCertificateFn = issuePublicCommercialCertificate,
   } = {}) =>
@@ -93,10 +108,31 @@ export const createPublicCertificateIssueHandler =
       });
     }
 
-    if (!body || typeof body !== "object" || !Object.hasOwn(body, "email")) {
+    if (
+      !body ||
+      typeof body !== "object" ||
+      !Object.hasOwn(body, "email") ||
+      !Object.hasOwn(body, "name") ||
+      !Object.hasOwn(body, "orderId") ||
+      !Object.hasOwn(body, "deviceId")
+    ) {
       return respond(400, {
         ok: false,
         code: "INVALID_REQUEST",
+      });
+    }
+
+    if (!isValidPublicIssueName(body.name)) {
+      return respond(400, {
+        ok: false,
+        code: "INVALID_NAME",
+      });
+    }
+
+    if (!isValidPublicIssueOrderId(body.orderId)) {
+      return respond(400, {
+        ok: false,
+        code: "INVALID_ORDER_ID",
       });
     }
 
@@ -107,6 +143,13 @@ export const createPublicCertificateIssueHandler =
       });
     }
 
+    if (!isValidPublicIssueDeviceId(body.deviceId)) {
+      return respond(400, {
+        ok: false,
+        code: "INVALID_DEVICE_ID",
+      });
+    }
+
     try {
       let issueStore;
       try {
@@ -114,6 +157,17 @@ export const createPublicCertificateIssueHandler =
       } catch (error) {
         console.error(
           "[public-certificate-issue] issueStoreFactory failed:",
+          error instanceof Error ? error.stack || error.message : error,
+        );
+        throw error;
+      }
+
+      let deviceClaimStore;
+      try {
+        deviceClaimStore = deviceClaimStoreFactory();
+      } catch (error) {
+        console.error(
+          "[public-certificate-issue] deviceClaimStoreFactory failed:",
           error instanceof Error ? error.stack || error.message : error,
         );
         throw error;
@@ -132,13 +186,20 @@ export const createPublicCertificateIssueHandler =
 
       const result = await issuePublicCommercialCertificateFn({
         issueStore,
+        deviceClaimStore,
         licenseStore,
+        deviceId: body.deviceId,
+        name: body.name,
+        orderId: body.orderId,
         email: body.email,
       });
 
       if (!result.ok) {
         const statusCode =
-          result.code === "INVALID_EMAIL"
+          result.code === "INVALID_EMAIL" ||
+          result.code === "INVALID_NAME" ||
+          result.code === "INVALID_ORDER_ID" ||
+          result.code === "INVALID_DEVICE_ID"
             ? 400
             : result.code === "LICENSE_WRITE_NOT_VISIBLE"
               ? 500

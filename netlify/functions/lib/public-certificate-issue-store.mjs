@@ -6,6 +6,7 @@ import { normalizeLicenseKey } from "./license-store.mjs";
 const ISSUE_STATUS = new Set(["ISSUED"]);
 const OPERATOR_STATUS = new Set(["PENDING", "IMPORTED"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ORDER_ID_PATTERN = /^[A-Z0-9_-]{6,}$/i;
 const RECENT_PUBLIC_CERTIFICATE_ISSUES_KEY = "public-certificate-issue:recent";
 
 const isIsoDateString = (value) =>
@@ -15,9 +16,15 @@ const isPlainObject = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
 export const normalizePublicIssueEmail = (email) => String(email || "").trim().toLowerCase();
+export const normalizePublicIssueName = (name) => String(name || "").trim();
+export const normalizePublicIssueOrderId = (orderId) => String(orderId || "").trim();
 
 export const isValidPublicIssueEmail = (email) =>
   EMAIL_PATTERN.test(normalizePublicIssueEmail(email));
+
+export const isValidPublicIssueName = (name) => normalizePublicIssueName(name) !== "";
+export const isValidPublicIssueOrderId = (orderId) =>
+  ORDER_ID_PATTERN.test(normalizePublicIssueOrderId(orderId));
 
 const normalizePublicIssueId = (issueId) => String(issueId || "").trim();
 
@@ -25,6 +32,8 @@ const parseStoredPublicCertificateIssueRecord = (record) => {
   if (!isPlainObject(record)) return null;
 
   const issueId = normalizePublicIssueId(record.issueId);
+  const name = record.name == null ? null : normalizePublicIssueName(record.name);
+  const orderId = record.orderId == null ? null : normalizePublicIssueOrderId(record.orderId);
   const email = normalizePublicIssueEmail(record.email);
   const issuedCommercialCertificate = normalizeLicenseKey(record.issuedCommercialCertificate);
   const issuedAt = String(record.issuedAt || "").trim();
@@ -34,6 +43,14 @@ const parseStoredPublicCertificateIssueRecord = (record) => {
 
   if (!issueId) {
     throw new Error("Public certificate issue record is missing issueId");
+  }
+
+  if (name !== null && !isValidPublicIssueName(name)) {
+    throw new Error("Public certificate issue record has invalid name");
+  }
+
+  if (orderId !== null && !isValidPublicIssueOrderId(orderId)) {
+    throw new Error("Public certificate issue record has invalid orderId");
   }
 
   if (!isValidPublicIssueEmail(email)) {
@@ -62,6 +79,8 @@ const parseStoredPublicCertificateIssueRecord = (record) => {
 
   return {
     issueId,
+    name,
+    orderId,
     email,
     issuedCommercialCertificate,
     issuedAt,
@@ -162,6 +181,8 @@ const upsertRecentPublicCertificateIssuesIndex = async (store, issueId) => {
 
 const summarizePublicCertificateIssue = (record) => ({
   issueId: record.issueId,
+  name: record.name,
+  orderId: record.orderId,
   email: record.email,
   issuedCommercialCertificate: record.issuedCommercialCertificate,
   issuedAt: record.issuedAt,
@@ -184,6 +205,8 @@ export const getPublicCertificateIssueStore = () =>
 export const createPublicCertificateIssueRecord = async (store, record) => {
   const parsedRecord = parseStoredPublicCertificateIssueRecord({
     issueId: record?.issueId || `pub_issue_${randomUUID()}`,
+    name: record?.name ?? null,
+    orderId: record?.orderId ?? null,
     email: record?.email,
     issuedCommercialCertificate: record?.issuedCommercialCertificate,
     issuedAt: record?.issuedAt,

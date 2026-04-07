@@ -82,6 +82,11 @@
         margin-top: 28px;
       }
 
+      .form-block[hidden],
+      .receipt[hidden] {
+        display: none;
+      }
+
       label {
         display: block;
         margin-bottom: 12px;
@@ -152,6 +157,47 @@
         color: #bbf7d0;
       }
 
+      .receipt {
+        margin-top: 28px;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .receipt h2 {
+        margin: 0 0 14px;
+        font-size: 18px;
+      }
+
+      .receipt-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .receipt-item {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .receipt-item-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(255, 255, 255, 0.46);
+      }
+
+      .receipt-item-value {
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--text);
+        word-break: break-word;
+      }
+
       .result {
         margin-top: 24px;
         padding: 18px;
@@ -206,28 +252,88 @@
         after submission.
       </p>
 
-      <form id="claim-form">
-        <label for="email">Email Address</label>
-        <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
-        <div class="actions">
-          <button id="submit-button" class="primary" type="submit">Generate Certificate</button>
+      <div id="form-block" class="form-block">
+        <form id="claim-form">
+          <label for="email">Email Address</label>
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+          <label for="name" style="margin-top: 18px;">NAME</label>
+          <input id="name" name="name" type="text" autocomplete="name" placeholder="Your name" />
+          <label for="order-id" style="margin-top: 18px;">ORDER ID</label>
+          <input id="order-id" name="orderId" type="text" autocomplete="off" placeholder="Your order ID" />
+          <div class="actions">
+            <button id="submit-button" class="primary" type="submit">Generate Certificate</button>
+          </div>
+        </form>
+      </div>
+
+      <section id="receipt" class="receipt" aria-live="polite" hidden>
+        <h2>Application Recorded</h2>
+        <div class="receipt-grid">
+          <div class="receipt-item">
+            <span class="receipt-item-label">Email Address</span>
+            <div id="receipt-email" class="receipt-item-value"></div>
+          </div>
+          <div class="receipt-item">
+            <span class="receipt-item-label">Name</span>
+            <div id="receipt-name" class="receipt-item-value"></div>
+          </div>
+          <div class="receipt-item">
+            <span class="receipt-item-label">Order ID</span>
+            <div id="receipt-order-id" class="receipt-item-value"></div>
+          </div>
         </div>
-      </form>
+      </section>
 
       <div id="status" class="status" aria-live="polite"></div>
 
       <section id="result" class="result" aria-live="polite">
-        <h2>Your Commercial Certificate</h2>
+        <h2>Issued Commercial Certificate</h2>
         <div id="certificate-value" class="certificate"></div>
         <button id="copy-button" class="secondary" type="button">Copy Certificate</button>
         <p class="next-step">
-          Copy this certificate and paste it into Settings → Access &amp; License in Visual
-          Pomodoro.
+          This certificate has been issued and recorded. Use it later in Settings → Access &amp;
+          License in Visual Pomodoro, and keep it for future reference.
         </p>
       </section>
     </main>
 
     <script>
+      const DEVICE_ID_STORAGE_KEY = 'koto_device_id';
+
+      const normalizeDeviceId = (deviceId) =>
+        String(deviceId || '')
+          .trim()
+          .replace(/\s+/g, '')
+          .toUpperCase();
+
+      const createDeviceId = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+
+        for (let i = 0; i < 12; i += 1) {
+          result += chars[Math.floor(Math.random() * chars.length)];
+        }
+
+        return `LL-${result}`;
+      };
+
+      const getDeviceId = () => {
+        let stored = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+
+        if (!stored) {
+          stored = createDeviceId();
+          window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, stored);
+          return stored;
+        }
+
+        const normalized = normalizeDeviceId(stored);
+        if (normalized !== stored) {
+          window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, normalized);
+        }
+
+        return normalized;
+      };
+
       const isLocalhost =
         window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -245,12 +351,20 @@
       clearLocalServiceWorkers();
 
       const form = document.getElementById('claim-form');
+      const formBlock = document.getElementById('form-block');
+      const receiptEl = document.getElementById('receipt');
+      const receiptEmailEl = document.getElementById('receipt-email');
+      const receiptNameEl = document.getElementById('receipt-name');
+      const receiptOrderIdEl = document.getElementById('receipt-order-id');
       const emailInput = document.getElementById('email');
+      const nameInput = document.getElementById('name');
+      const orderIdInput = document.getElementById('order-id');
       const submitButton = document.getElementById('submit-button');
       const statusEl = document.getElementById('status');
       const resultEl = document.getElementById('result');
       const certificateValueEl = document.getElementById('certificate-value');
       const copyButton = document.getElementById('copy-button');
+      const isValidOrderId = (orderId) => /^[A-Za-z0-9_-]{6,}$/.test(String(orderId || '').trim());
 
       const setStatus = (message, type = '') => {
         statusEl.textContent = message;
@@ -261,6 +375,19 @@
         event.preventDefault();
 
         const email = emailInput.value.trim();
+        const name = nameInput.value.trim();
+        const orderId = orderIdInput.value.trim();
+        const deviceId = getDeviceId();
+
+        if (!name) {
+          setStatus('Please enter your name to continue.', 'error');
+          return;
+        }
+
+        if (!isValidOrderId(orderId)) {
+          setStatus('Please enter a valid order ID to continue.', 'error');
+          return;
+        }
 
         submitButton.disabled = true;
         setStatus('');
@@ -274,15 +401,23 @@
             },
             body: JSON.stringify({
               email,
+              name,
+              orderId,
+              deviceId,
             }),
           });
 
           const data = await response.json();
 
           if (response.ok && data && data.ok === true && typeof data.commercialCertificate === 'string') {
+            receiptEmailEl.textContent = email;
+            receiptNameEl.textContent = name;
+            receiptOrderIdEl.textContent = orderId;
+            formBlock.hidden = true;
+            receiptEl.hidden = false;
             certificateValueEl.textContent = data.commercialCertificate;
             resultEl.classList.add('visible');
-            setStatus('Certificate generated successfully.', 'success');
+            setStatus('Commercial certificate issued and recorded.', 'success');
             return;
           }
 
@@ -293,6 +428,21 @@
 
           if (data && data.code === 'INVALID_EMAIL') {
             setStatus('Please enter a valid email address to continue.', 'error');
+            return;
+          }
+
+          if (data && data.code === 'INVALID_NAME') {
+            setStatus('Please enter your name to continue.', 'error');
+            return;
+          }
+
+          if (data && data.code === 'INVALID_ORDER_ID') {
+            setStatus('Please enter a valid order ID to continue.', 'error');
+            return;
+          }
+
+          if (data && data.code === 'INVALID_DEVICE_ID') {
+            setStatus('Unable to initialize this device right now.', 'error');
             return;
           }
 
