@@ -377,6 +377,8 @@
                     <span>Email</span>
                   </label>
                 </th>
+                <th class="col-name">Name</th>
+                <th class="col-order-id">Order ID</th>
                 <th class="col-certificate">Commercial Certificate</th>
                 <th class="col-issued-at">Issued At</th>
                 <th class="col-status">Status</th>
@@ -590,18 +592,22 @@
           const isSelected = selectedIssueIds.has(issue.issueId);
           const row = document.createElement('tr');
           row.innerHTML = `
+            <td class="col-select">
+              <input
+                class="select-checkbox"
+                type="checkbox"
+                data-select-issue="${escapeHtml(issue.issueId || '')}"
+                aria-label="Select ${escapeHtml(issue.email || issue.issueId || 'issue')}"
+                ${isSelected ? 'checked' : ''}
+              />
+            </td>
             <td class="col-email">
               <div class="email-cell">
-                <input
-                  class="select-checkbox"
-                  type="checkbox"
-                  data-select-issue="${escapeHtml(issue.issueId || '')}"
-                  aria-label="Select ${escapeHtml(issue.email || issue.issueId || 'issue')}"
-                  ${isSelected ? 'checked' : ''}
-                />
                 ${renderCopyValue(issue.email || '')}
               </div>
             </td>
+            <td class="col-name">${escapeHtml(issue.name || '—')}</td>
+            <td class="col-order-id">${escapeHtml(issue.orderId || '—')}</td>
             <td class="col-certificate">${renderCopyCodeValue(issue.issuedCommercialCertificate || '')}</td>
             <td class="col-issued-at" title="${escapeHtml(issue.issuedAt || '')}">${escapeHtml(formatIssuedAt(issue.issuedAt || ''))}</td>
             <td class="col-status">${issue.issueStatus || ''}</td>
