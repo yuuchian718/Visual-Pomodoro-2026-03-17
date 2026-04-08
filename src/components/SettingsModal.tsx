@@ -74,6 +74,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [customDurationError, setCustomDurationError] = React.useState<string | null>(null);
   const [didCopyLink, setDidCopyLink] = React.useState(false);
   const [isLocaleMenuOpen, setIsLocaleMenuOpen] = React.useState(false);
+  const customDurationInputRef = React.useRef<HTMLInputElement | null>(null);
   const isPremium = accessState.isPremium;
   const canUseCustomDuration = isFeatureEnabled('customDuration', accessState);
   const canUseMusic = isFeatureEnabled('music', accessState);
@@ -111,7 +112,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
   }, [didCopyLink]);
 
+  const clearCustomDurationFocus = React.useCallback(() => {
+    const input = customDurationInputRef.current;
+    if (input && document.activeElement === input) {
+      input.blur();
+    }
+  }, []);
+
+  const handleCloseModal = React.useCallback(() => {
+    clearCustomDurationFocus();
+    setIsLocaleMenuOpen(false);
+    onClose();
+  }, [clearCustomDurationFocus, onClose]);
+
   const handleCustomDurationApply = () => {
+    clearCustomDurationFocus();
     const parsedMinutes = parsedCustomDuration;
     if (!parsedMinutes) {
       setCustomDurationError(copy.customDurationError);
@@ -189,7 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 <button 
-                  onClick={onClose}
+                  onClick={handleCloseModal}
                   className="rounded-full p-2 hover:bg-white/10 transition-colors"
                 >
                   <X className="h-6 w-6" />
@@ -269,6 +284,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <Timer className="h-4 w-4 text-emerald-300/80" />
                       </div>
                       <input
+                        ref={customDurationInputRef}
                         type="text"
                         inputMode="numeric"
                         value={customDurationInput}
@@ -285,7 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }
                         }}
                         placeholder={copy.customDurationPlaceholder}
-                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
+                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-base md:text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
                       />
                       <button
                         type="button"
@@ -514,7 +530,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={handleCloseModal}
               className="mt-8 w-full flex-shrink-0 rounded-2xl border border-white/16 bg-white/[0.11] py-3.5 text-base font-semibold text-white/95 shadow-lg shadow-black/20 transition-all hover:bg-white/[0.15] hover:text-white active:scale-[0.98]"
             >
               {copy.done}
