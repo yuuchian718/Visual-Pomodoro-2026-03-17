@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {KeyRound, RefreshCcw, ShieldCheck, Trash2} from 'lucide-react';
 import type {AccessState} from '../lib/access';
+import {useLocale} from '../lib/locale';
 
 export interface CommercialActivationResult {
   ok: boolean;
@@ -27,25 +28,27 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   onActivateCommercialLicenseKey,
   compact = false,
 }) => {
+  const {messages} = useLocale();
+  const copy = messages.authPanel;
   const [tokenInput, setTokenInput] = useState(accessState.license.token ?? '');
   const [commercialLicenseKey, setCommercialLicenseKey] = useState('');
   const [commercialResult, setCommercialResult] = useState<CommercialActivationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const accessLabel = accessState.isPremium ? accessState.accessSource : 'FREE MODE';
+  const accessLabel = accessState.isPremium ? accessState.accessSource : copy.freeMode;
   const trialStatus = accessState.isTrialActive
-    ? `Active${accessState.trial.lastKnownEndsAt
-      ? ` until ${new Date(accessState.trial.lastKnownEndsAt).toLocaleString()}`
+    ? `${copy.activeUntilPrefix}${accessState.trial.lastKnownEndsAt
+      ? ` ${new Date(accessState.trial.lastKnownEndsAt).toLocaleString()}`
       : ''}`
     : accessState.trial.lastKnownEndsAt
-      ? 'Trial ended'
-      : 'Not started';
+      ? copy.trialEnded
+      : copy.notStarted;
   const licenseStatus = accessState.license.hasStoredToken
     ? accessState.license.isValid
-      ? 'Valid'
+      ? copy.valid
       : accessState.license.isExpired
-        ? 'Expired'
-        : 'Invalid'
-    : 'Not installed';
+        ? copy.expired
+        : copy.invalid
+    : copy.notInstalled;
   const isEffectiveLicensedState =
     accessState.accessSource === 'LICENSE' &&
     accessState.license.hasStoredToken &&
@@ -119,14 +122,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           setCommercialResult({
             ok: true,
             result: typeof data?.activation?.result === 'string' ? data.activation.result : 'ACTIVATED',
-            message: 'License saved. This device is now unlocked.',
+            message: copy.licenseSavedSuccess,
             formalTokenPrepared: true,
           });
         } catch {
           setCommercialResult({
             ok: false,
             error: 'LICENSE_SAVE_FAILED',
-            message: 'Token prepared for this device. Continue with Step 2 manually.',
+            message: copy.tokenPreparedManual,
             formalTokenPrepared: true,
           });
         }
@@ -166,17 +169,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-white/60">Current Access</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-white/60">{copy.currentAccess}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <p className="text-xl font-semibold text-white">{accessLabel}</p>
               <span className="rounded-full border border-emerald-400/30 bg-emerald-500/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
-                Access Status
+                {copy.accessStatus}
               </span>
             </div>
             <p className="mt-3 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-xs leading-5 text-white/78">
               {accessState.isPremium
-                ? 'Activation confirms license status. Your formal token still unlocks this device.'
-                : 'Free mode stays available. Upgrade to unlock longer sessions, custom duration, music, and custom backgrounds.'}
+                ? copy.premiumAccessHelp
+                : copy.freeAccessHelp}
             </p>
           </div>
         </div>
@@ -185,17 +188,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3"
             title={accessState.deviceId}
           >
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">Device ID</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">{copy.deviceId}</p>
             <p className="mt-2 break-all font-mono text-[11px] leading-5 text-white/78">
               {accessState.deviceId}
             </p>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">Trial</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">{copy.trial}</p>
             <p className="mt-2 text-sm font-medium text-white/92">{trialStatus}</p>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">License</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">{copy.license}</p>
             <p className="mt-2 text-sm font-medium text-white/92">{licenseStatus}</p>
           </div>
         </div>
@@ -203,20 +206,20 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-500/[0.06] p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-200/90">
-          Step 1: Validate purchase
+          {copy.step1Title}
         </p>
         <p className="mt-2 text-sm text-white/76">
-          Enter your commercial license key. If valid, this device will be unlocked automatically.
+          {copy.step1Description}
         </p>
         <label className="mt-4 block">
           <span className="mb-2 block text-xs font-medium uppercase tracking-[0.25em] text-white/58">
-            Commercial License Key
+            {copy.commercialLicenseKey}
           </span>
           <input
             value={commercialLicenseKey}
             onChange={(event) => setCommercialLicenseKey(event.target.value)}
             className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
-            placeholder="Enter your commercial license key"
+            placeholder={copy.commercialLicenseKeyPlaceholder}
           />
         </label>
 
@@ -228,7 +231,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300/45 bg-emerald-400/18 px-4 py-3 text-sm font-semibold text-emerald-100 shadow-[0_10px_24px_rgba(16,185,129,0.12)] transition hover:bg-emerald-400/24 hover:border-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <KeyRound className="h-4 w-4" />
-            Activate License Key
+            {copy.activateLicenseKey}
           </button>
         </div>
 
@@ -243,7 +246,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </p>
             {commercialResult?.ok && (
               <p className="mt-2 text-xs leading-5 text-white/76">
-                Activation confirms license status. Your formal token still unlocks this device.
+                {copy.activationConfirmsStatus}
               </p>
             )}
             {commercialResult?.ok && commercialResult.message && (
@@ -262,21 +265,21 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-100/90">
-          Step 2: Paste formal token to unlock
+          {copy.step2Title}
         </p>
         <p className="mt-2 text-sm text-white/76">
-          Manual fallback: paste a formal token for this device only if automatic unlock does not complete.
+          {copy.step2Description}
         </p>
         <label className="mt-4 block">
           <span className="mb-2 block text-xs font-medium uppercase tracking-[0.25em] text-white/58">
-            License Token
+            {copy.licenseToken}
           </span>
           <textarea
             value={tokenInput}
             onChange={(event) => setTokenInput(event.target.value)}
             rows={compact ? 4 : 6}
             className="w-full rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 font-mono text-xs text-white placeholder:text-white/42 shadow-inner shadow-black/10 outline-none transition focus:border-emerald-400/60 focus:bg-white/[0.1]"
-            placeholder="Paste your Visual Pomodoro license token"
+            placeholder={copy.licenseTokenPlaceholder}
           />
         </label>
       </div>
@@ -289,7 +292,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <KeyRound className="h-4 w-4" />
-          Save License
+          {copy.saveLicense}
         </button>
         <button
           type="button"
@@ -298,7 +301,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/82 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCcw className="h-4 w-4" />
-          Refresh
+          {copy.refresh}
         </button>
         {!isEffectiveLicensedState && (
           <button
@@ -308,7 +311,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-sm font-semibold text-white/72 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
-            Clear License
+            {copy.clearLicense}
           </button>
         )}
       </div>

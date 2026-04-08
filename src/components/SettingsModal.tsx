@@ -6,6 +6,7 @@ import { TickType, AlarmType } from '../lib/sounds';
 import type {AccessState} from '../lib/access';
 import {AuthPanel, type CommercialActivationResult} from './AuthPanel';
 import {getUpgradeUrl} from '../lib/upgrade';
+import {useLocale} from '../lib/locale';
 import {shareApp} from '../lib/share';
 import {
   isDurationAllowed,
@@ -66,10 +67,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRefreshAccess,
   onActivateCommercialLicenseKey,
 }) => {
+  const {locale, setLocale, options, messages} = useLocale();
+  const copy = messages.settingsModal;
   const [isCustomDurationOpen, setIsCustomDurationOpen] = React.useState(false);
   const [customDurationInput, setCustomDurationInput] = React.useState('');
   const [customDurationError, setCustomDurationError] = React.useState<string | null>(null);
-  const [shareLabel, setShareLabel] = React.useState('Share App');
+  const [didCopyLink, setDidCopyLink] = React.useState(false);
+  const [isLocaleMenuOpen, setIsLocaleMenuOpen] = React.useState(false);
   const isPremium = accessState.isPremium;
   const canUseCustomDuration = isFeatureEnabled('customDuration', accessState);
   const canUseMusic = isFeatureEnabled('music', accessState);
@@ -79,24 +83,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const parsedCustomDuration = parseCustomDurationInput(customDurationInput);
   const hasValidCustomDuration = parsedCustomDuration !== null;
 
+  const currentLocaleOption = options.find((option) => option.value === locale) ?? options[0];
+
+  const tickLabels: Record<TickType, string> = {
+    classic: copy.tickClassic,
+    wood: copy.tickWood,
+    digital: copy.tickDigital,
+  };
+
+  const alarmLabels: Record<AlarmType, string> = {
+    classic: copy.alarmClassic,
+    pulse: copy.alarmPulse,
+    chime: copy.alarmChime,
+  };
+
   React.useEffect(() => {
-    if (shareLabel === 'Share App') {
+    if (!didCopyLink) {
       return;
     }
 
     const timeout = window.setTimeout(() => {
-      setShareLabel('Share App');
+      setDidCopyLink(false);
     }, 1800);
 
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [shareLabel]);
+  }, [didCopyLink]);
 
   const handleCustomDurationApply = () => {
     const parsedMinutes = parsedCustomDuration;
     if (!parsedMinutes) {
-      setCustomDurationError('Enter a whole number from 1 to 240.');
+      setCustomDurationError(copy.customDurationError);
       return;
     }
 
@@ -110,7 +128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const result = await shareApp();
 
     if (result === 'copied') {
-      setShareLabel('Link Copied');
+      setDidCopyLink(true);
     }
   };
 
@@ -129,24 +147,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             exit={{ scale: 0.9, y: 20 }}
             className="w-full max-w-[56rem] max-h-[90vh] flex flex-col rounded-3xl border border-white/12 bg-zinc-950/72 px-5 py-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur-2xl overflow-hidden"
           >
-            <div className="mb-8 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <div className="mb-8 flex items-center justify-between gap-3 flex-shrink-0">
+              <h2 className="min-w-0 text-2xl font-bold text-white flex items-center gap-2">
                 <Clock className="h-6 w-6 text-emerald-400" />
-                Customization
+                <span className="truncate">{copy.title}</span>
               </h2>
-              <button 
-                onClick={onClose}
-                className="rounded-full p-2 hover:bg-white/10 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsLocaleMenuOpen((open) => !open)}
+                    title={copy.languageMenuTitle}
+                    aria-haspopup="menu"
+                    aria-expanded={isLocaleMenuOpen}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.08] text-lg transition-all hover:bg-white/[0.12] active:scale-[0.98]"
+                  >
+                    <span aria-hidden="true">{currentLocaleOption.flag}</span>
+                  </button>
+                  {isLocaleMenuOpen && (
+                    <div className="absolute right-0 top-full z-10 mt-2 min-w-[9rem] overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/96 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl">
+                      {options.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setLocale(option.value);
+                            setIsLocaleMenuOpen(false);
+                          }}
+                          className={cn(
+                            'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-left transition-colors',
+                            option.value === locale
+                              ? 'bg-white/[0.12] text-white'
+                              : 'text-white/80 hover:bg-white/[0.08] hover:text-white'
+                          )}
+                        >
+                          <span aria-hidden="true" className="text-base">{option.flag}</span>
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={onClose}
+                  className="rounded-full p-2 hover:bg-white/10 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-8 overflow-y-auto pr-2 custom-scrollbar flex-grow py-2">
               {/* Duration Selection */}
               <section>
                 <label className="mb-4 block text-sm font-medium text-zinc-300 uppercase tracking-widest">
-                  Timer Duration (Minutes)
+                  {copy.timerDuration}
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {durations.map(d => (
@@ -197,14 +252,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
                   >
                     <span className="inline-flex items-center gap-1.5">
-                      Custom
+                      {copy.custom}
                       {!canUseCustomDuration && <Lock className="h-3.5 w-3.5 text-zinc-500" />}
                     </span>
                   </button>
                 </div>
                 {!canUseCustomDuration && (
                   <p className="mt-3 text-xs uppercase tracking-[0.24em] text-white/38">
-                    Premium unlocks longer sessions and custom duration.
+                    {copy.customDurationPremiumHint}
                   </p>
                 )}
                 {isCustomDurationOpen && (
@@ -229,7 +284,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             handleCustomDurationApply();
                           }
                         }}
-                        placeholder="Enter 1–240 minutes"
+                        placeholder={copy.customDurationPlaceholder}
                         className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white placeholder:text-white/42 outline-none transition focus:border-emerald-400/60"
                       />
                       <button
@@ -242,14 +297,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             : "border border-white/12 bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
                         )}
                       >
-                        Apply
+                        {copy.customDurationApply}
                       </button>
                     </div>
                     {customDurationError && (
                       <p className="mt-3 text-xs text-red-300/90">{customDurationError}</p>
                     )}
                     {!customDurationError && (
-                      <p className="mt-3 text-xs text-white/40">Press Enter or Apply</p>
+                      <p className="mt-3 text-xs text-white/40">{copy.customDurationHint}</p>
                     )}
                   </div>
                 )}
@@ -258,7 +313,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Background Selection */}
               <section>
                 <label className="mb-4 block text-sm font-medium text-zinc-300 uppercase tracking-widest">
-                  Background Image
+                  {copy.backgroundImage}
                 </label>
                 <div className="flex gap-4">
                   <button
@@ -278,13 +333,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span className="flex items-center gap-3 min-w-0">
                       <ImageIcon className="h-5 w-5 shrink-0" />
                       <span className="text-sm font-medium text-left">
-                        Upload Image
+                        {copy.uploadImage}
                       </span>
                     </span>
                     {!canUseBackgroundFeatures && (
                       <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
                         <Lock className="h-3.5 w-3.5" />
-                        Premium
+                        {copy.premium}
                       </span>
                     )}
                   </button>
@@ -298,7 +353,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 {!canUseBackgroundFeatures && (
                   <p className="mt-3 text-xs text-white/38">
-                    Premium unlocks custom backgrounds
+                    {copy.customBackgroundsHint}
                   </p>
                 )}
               </section>
@@ -306,7 +361,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Sound Selection */}
               <section className="space-y-6">
                 <label className="block text-sm font-medium text-zinc-300 uppercase tracking-widest">
-                  Sound Modes
+                  {copy.soundModes}
                 </label>
                 
                 <div className="space-y-6">
@@ -314,7 +369,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Music className="h-3 w-3" />
-                      Tick Style
+                      {copy.tickStyle}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {(['classic', 'wood', 'digital'] as TickType[]).map(t => (
@@ -328,7 +383,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10"
                           )}
                         >
-                          {t}
+                          {tickLabels[t]}
                         </button>
                       ))}
                     </div>
@@ -338,7 +393,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Bell className="h-3 w-3" />
-                      Alarm Style
+                      {copy.alarmStyle}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {(['classic', 'pulse', 'chime'] as AlarmType[]).map(a => (
@@ -352,7 +407,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10"
                           )}
                         >
-                          {a}
+                          {alarmLabels[a]}
                         </button>
                       ))}
                     </div>
@@ -362,7 +417,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-xs text-zinc-400 uppercase tracking-wider">
                       <Music2 className="h-3 w-3" />
-                      Background Music
+                      {copy.backgroundMusic}
                     </div>
                     <button
                       onClick={() => {
@@ -381,13 +436,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="flex items-center gap-3 min-w-0">
                         <Music2 className={cn("h-4 w-4 shrink-0", canUseMusic ? "text-blue-400" : "text-zinc-500")} />
                         <span className={cn("text-sm truncate", canUseMusic ? "text-zinc-200" : "text-zinc-500")}>
-                          {bgMusicName || "Upload Music File"}
+                          {bgMusicName || copy.uploadMusicFile}
                         </span>
                       </span>
                       {canUseMusic || (
                         <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
                           <Lock className="h-3.5 w-3.5" />
-                          Premium
+                          {copy.premium}
                         </span>
                       )}
                     </button>
@@ -400,7 +455,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     {!canUseMusic && (
                       <p className="text-xs text-white/38">
-                        Premium unlocks background music upload
+                        {copy.backgroundMusicHint}
                       </p>
                     )}
                   </div>
@@ -412,10 +467,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-center gap-2 text-sm font-medium uppercase tracking-widest text-amber-100/80">
                       <ShieldCheck className="h-4 w-4 text-amber-200/80" />
-                      Upgrade
+                      {copy.upgrade}
                     </div>
                     <p className="mx-auto max-w-xl text-sm leading-6 text-white/72">
-                      Unlock longer sessions, custom duration, music, and custom backgrounds.
+                      {copy.upgradeDescription}
                     </p>
                   </div>
                   <a
@@ -424,7 +479,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.08] px-4 py-3 text-sm font-semibold text-white/92 transition-all hover:bg-white/[0.12] hover:text-white active:scale-[0.99]"
                   >
-                    Unlock Full Version
+                    {copy.unlockFullVersion}
                     <ArrowUpRight className="h-4 w-4 text-amber-200/85" />
                   </a>
                 </section>
@@ -434,7 +489,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-zinc-300">
                     <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                    Access & License
+                    {copy.accessAndLicense}
                   </div>
                   <button
                     type="button"
@@ -444,7 +499,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/86 transition-all hover:bg-white/[0.12] hover:text-white active:scale-[0.99]"
                   >
                     <Share2 className="h-3.5 w-3.5 text-white/78" />
-                    {shareLabel}
+                    {didCopyLink ? copy.linkCopied : copy.shareApp}
                   </button>
                 </div>
                 <AuthPanel
@@ -462,7 +517,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={onClose}
               className="mt-8 w-full flex-shrink-0 rounded-2xl border border-white/16 bg-white/[0.11] py-3.5 text-base font-semibold text-white/95 shadow-lg shadow-black/20 transition-all hover:bg-white/[0.15] hover:text-white active:scale-[0.98]"
             >
-              Done
+              {copy.done}
             </button>
           </motion.div>
         </motion.div>

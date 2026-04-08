@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import {AuthGate} from './components/AuthGate.tsx';
+import {LocaleProvider} from './lib/locale.tsx';
 import './index.css';
 
 const isLocalhost =
@@ -29,16 +30,18 @@ if ('serviceWorker' in navigator && !isLocalhost) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthGate>
-      {({accessState, saveLicenseToken, clearLicenseToken, refreshAccess, activateCommercialLicenseKey}) => (
-        <App
-          accessState={accessState}
-          onSaveLicenseToken={saveLicenseToken}
-          onClearLicenseToken={clearLicenseToken}
-          onRefreshAccess={refreshAccess}
-          onActivateCommercialLicenseKey={activateCommercialLicenseKey}
-        />
-      )}
-    </AuthGate>
+    <LocaleProvider>
+      <AuthGate>
+        {({accessState, saveLicenseToken, clearLicenseToken, refreshAccess, activateCommercialLicenseKey}) => (
+          <App
+            accessState={accessState}
+            onSaveLicenseToken={saveLicenseToken}
+            onClearLicenseToken={clearLicenseToken}
+            onRefreshAccess={refreshAccess}
+            onActivateCommercialLicenseKey={activateCommercialLicenseKey}
+          />
+        )}
+      </AuthGate>
+    </LocaleProvider>
   </StrictMode>,
 );

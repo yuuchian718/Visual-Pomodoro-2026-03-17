@@ -1,6 +1,7 @@
 import React from 'react';
 import {resolveStartupAccess, type AccessState} from '../lib/access';
 import {clearStoredLicenseToken, setStoredLicenseToken} from '../lib/license';
+import {useLocale} from '../lib/locale';
 import type {CommercialActivationResult} from './AuthPanel';
 
 interface AuthRenderProps {
@@ -16,6 +17,7 @@ interface AuthGateProps {
 }
 
 export const AuthGate: React.FC<AuthGateProps> = ({children}) => {
+  const {messages} = useLocale();
   const [accessState, setAccessState] = React.useState<AccessState | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -85,7 +87,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({children}) => {
   if (isLoading || !accessState) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-sm uppercase tracking-[0.4em] text-white/45">
-        Loading access
+        {messages.authGateLoading}
       </div>
     );
   }
