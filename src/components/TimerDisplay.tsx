@@ -22,7 +22,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         <h1 
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[25vw] max-md:landscape:text-[18vw] md:text-[26vw]"
+              ? "text-[25vw] max-md:landscape:text-[clamp(4.5rem,14vw,8rem)] md:text-[26vw]"
               : "text-[38vw] max-md:landscape:text-[24vw] md:text-[28vw]",
             "font-black leading-none tracking-tighter text-white",
             "select-none transition-all duration-300 animate-glow",
@@ -52,7 +52,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         <span
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[13vw] mb-[4vw] max-md:landscape:text-[9vw] max-md:landscape:mb-[2vw] md:text-[13vw] md:mb-[3vw]"
+              ? "text-[13vw] mb-[4vw] max-md:landscape:text-[clamp(2.25rem,7vw,4.5rem)] max-md:landscape:mb-[1.5vw] md:text-[13vw] md:mb-[3vw]"
               : "text-[20vw] mb-[8vw] max-md:landscape:text-[12vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]",
             "font-black text-white/40",
           )}
@@ -64,7 +64,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         <h1 
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[21vw] max-md:landscape:text-[15vw] md:text-[22vw]"
+              ? "text-[21vw] max-md:landscape:text-[clamp(3.75rem,11vw,6.75rem)] md:text-[22vw]"
               : "text-[32vw] max-md:landscape:text-[20vw] md:text-[24vw]",
             "font-black leading-none tracking-tighter animate-glow",
             "select-none transition-all duration-300",
