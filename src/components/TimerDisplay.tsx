@@ -15,16 +15,16 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
     <motion.div 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative flex w-full h-[50dvh] max-md:landscape:h-[34dvh] md:h-auto items-center justify-center"
+      className="relative flex w-full max-w-full overflow-hidden h-[50dvh] max-md:landscape:h-[34dvh] md:h-auto items-center justify-center"
     >
-      <div className="relative flex max-w-full items-baseline justify-center gap-1 px-2 md:gap-4">
+      <div className="relative flex w-full min-w-0 max-w-full items-baseline justify-center gap-1 overflow-hidden px-2 md:gap-4">
         {/* Minutes: Protruding 3D Effect */}
         <h1 
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[27vw] max-md:landscape:text-[20vw] md:text-[28vw]"
+              ? "text-[24vw] max-md:landscape:text-[17vw] md:text-[24vw]"
               : "text-[38vw] max-md:landscape:text-[24vw] md:text-[28vw]",
-            "font-black leading-none tracking-tighter text-white",
+            "min-w-0 font-black leading-none tracking-tighter text-white",
             "select-none transition-all duration-300 animate-glow",
             isActive ? "opacity-100" : "opacity-80"
           )}
@@ -52,9 +52,9 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         <span
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[14vw] mb-[5vw] max-md:landscape:text-[10vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]"
+              ? "text-[12vw] mb-[4vw] max-md:landscape:text-[8vw] max-md:landscape:mb-[2vw] md:text-[12vw] md:mb-[3vw]"
               : "text-[20vw] mb-[8vw] max-md:landscape:text-[12vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]",
-            "font-black text-white/40",
+            "min-w-0 font-black text-white/40",
           )}
         >
           :
@@ -64,9 +64,9 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
         <h1 
           className={cn(
             hasThreeDigitMinutes
-              ? "text-[23vw] max-md:landscape:text-[17vw] md:text-[24vw]"
+              ? "text-[20vw] max-md:landscape:text-[14vw] md:text-[20vw]"
               : "text-[32vw] max-md:landscape:text-[20vw] md:text-[24vw]",
-            "font-black leading-none tracking-tighter animate-glow",
+            "min-w-0 font-black leading-none tracking-tighter animate-glow",
             "select-none transition-all duration-300",
             "text-black/40"
           )}
