@@ -59,7 +59,12 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
       animate={{ opacity: 1, scale: 1 }}
       className="relative flex w-full h-[50dvh] max-md:landscape:h-[34dvh] md:h-auto items-center justify-center"
     >
-      <div className="relative flex max-w-full items-baseline justify-center gap-1 px-2 md:gap-4">
+      <div
+        className={cn(
+          "relative flex max-w-full justify-center px-2 md:gap-4",
+          threeDigitLandscapeScale ? "items-center gap-2" : "items-baseline gap-1",
+        )}
+      >
         {/* Minutes: Protruding 3D Effect */}
         <h1 
           className={cn(
@@ -101,7 +106,8 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
           )}
           style={threeDigitLandscapeScale ? {
             fontSize: `${colonLandscapeSize}px`,
-            marginBottom: `${colonLandscapeOffset}px`,
+            marginBottom: 0,
+            alignSelf: 'center',
           } : undefined}
         >
           :
