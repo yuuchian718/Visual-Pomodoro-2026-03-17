@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operator Analytics</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f2f4f1;
+        color: #111827;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 24px;
+      }
+
+      .shell {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+
+      .hero {
+        margin-bottom: 26px;
+        padding: 24px 24px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(22, 101, 52, 0.14);
+        background: linear-gradient(135deg, #f7faf7 0%, #edf7ef 58%, #e4f3e8 100%);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 30px;
+        color: #14532d;
+      }
+
+      p {
+        color: rgba(17, 24, 39, 0.74);
+        line-height: 1.6;
+      }
+
+      .card {
+        padding: 22px;
+        border-radius: 22px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+      }
+
+      .section-label {
+        margin: 0 0 10px;
+        color: rgba(17, 24, 39, 0.52);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 18px 0 12px;
+      }
+
+      input,
+      button {
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #ffffff;
+        color: #111827;
+        padding: 12px 14px;
+        font-size: 14px;
+      }
+
+      input {
+        min-width: 220px;
+        flex: 1 1 240px;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 700;
+        transition:
+          background-color 120ms ease,
+          border-color 120ms ease,
+          color 120ms ease,
+          transform 120ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button.primary {
+        border-color: #166534;
+        background: #166534;
+        color: #f8fafc;
+      }
+
+      button.primary:hover {
+        background: #14532d;
+      }
+
+      button.secondary {
+        border-color: rgba(22, 101, 52, 0.22);
+        background: #f3f8f4;
+        color: #166534;
+      }
+
+      button.secondary:hover {
+        background: #ebf5ee;
+      }
+
+      button.ghost {
+        border-color: rgba(15, 23, 42, 0.1);
+        background: #f8fafc;
+        color: rgba(17, 24, 39, 0.74);
+      }
+
+      button.ghost:hover {
+        background: #eef2f7;
+      }
+
+      .hint {
+        margin-top: -2px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        color: rgba(17, 24, 39, 0.58);
+      }
+
+      .status {
+        min-height: 22px;
+        margin-bottom: 14px;
+        color: rgba(17, 24, 39, 0.68);
+      }
+
+      .status.error {
+        color: #b91c1c;
+      }
+
+      .table-scroll {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 2px;
+      }
+
+      table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+        background: #fcfdfc;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 11px 14px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        font-size: 13px;
+        vertical-align: middle;
+      }
+
+      th {
+        color: rgba(17, 24, 39, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 11px;
+        background: #f7faf8;
+      }
+
+      .empty {
+        margin-top: 18px;
+        color: rgba(17, 24, 39, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <h1>Recent Analytics Events</h1>
+        <p>
+          Minimal operator view for recent backend analytics events. This page is intentionally
+          small: load recent records and export the currently loaded list.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="section-label">Recent Events</div>
+
+        <div class="toolbar">
+          <input
+            id="operator-secret"
+            type="password"
+            placeholder="Operator secret"
+            autocomplete="off"
+          />
+          <button id="load-button" class="primary" type="button">Load Recent</button>
+          <button id="export-button" class="secondary" type="button">Export CSV</button>
+          <button id="clear-secret-button" class="ghost" type="button">Clear Saved Secret</button>
+        </div>
+
+        <div class="hint">
+          The operator secret is kept in your current browser session only.
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+
+        <div class="table-scroll">
+          <table id="events-table" hidden>
+            <thead>
+              <tr>
+                <th>ts</th>
+                <th>event</th>
+                <th>source</th>
+                <th>resultCode</th>
+                <th>deviceId</th>
+              </tr>
+            </thead>
+            <tbody id="events-body"></tbody>
+          </table>
+        </div>
+
+        <div id="empty-state" class="empty" hidden>No recent analytics events.</div>
+      </section>
+    </main>
+
+    <script>
+      const SAVED_SECRET_KEY = 'operator_analytics_secret';
+      const DEFAULT_LIMIT = 50;
+
+      const secretInput = document.getElementById('operator-secret');
+      const loadButton = document.getElementById('load-button');
+      const exportButton = document.getElementById('export-button');
+      const clearSecretButton = document.getElementById('clear-secret-button');
+      const statusEl = document.getElementById('status');
+      const tableEl = document.getElementById('events-table');
+      const bodyEl = document.getElementById('events-body');
+      const emptyEl = document.getElementById('empty-state');
+
+      let currentEvents = [];
+
+      const setStatus = (message, type = '') => {
+        statusEl.textContent = message;
+        statusEl.className = `status${type ? ` ${type}` : ''}`;
+      };
+
+      const escapeHtml = (value) =>
+        String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+
+      const loadSavedSecret = () => {
+        try {
+          return window.sessionStorage.getItem(SAVED_SECRET_KEY) || '';
+        } catch {
+          return '';
+        }
+      };
+
+      const saveSecret = (secret) => {
+        try {
+          window.sessionStorage.setItem(SAVED_SECRET_KEY, secret);
+        } catch {
+          // Ignore storage failures and continue request.
+        }
+      };
+
+      const clearSavedSecret = () => {
+        try {
+          window.sessionStorage.removeItem(SAVED_SECRET_KEY);
+        } catch {
+          // Ignore storage failures when clearing.
+        }
+      };
+
+      const formatTimestamp = (value) => {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      };
+
+      const renderEvents = (events) => {
+        currentEvents = Array.isArray(events) ? events : [];
+        bodyEl.innerHTML = '';
+
+        if (!currentEvents.length) {
+          tableEl.hidden = true;
+          emptyEl.hidden = false;
+          return;
+        }
+
+        emptyEl.hidden = true;
+        tableEl.hidden = false;
+
+        for (const event of currentEvents) {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td title="${escapeHtml(event.ts || '')}">${escapeHtml(formatTimestamp(event.ts || ''))}</td>
+            <td>${escapeHtml(event.event || '')}</td>
+            <td>${escapeHtml(event.source || '')}</td>
+            <td>${escapeHtml(event.resultCode || '')}</td>
+            <td>${escapeHtml(event.deviceId || '')}</td>
+          `;
+          bodyEl.appendChild(row);
+        }
+      };
+
+      const loadRecentEvents = async () => {
+        const secret = secretInput.value.trim();
+        if (!secret) {
+          setStatus('Operator secret is required.', 'error');
+          return;
+        }
+
+        saveSecret(secret);
+        loadButton.disabled = true;
+        exportButton.disabled = true;
+        clearSecretButton.disabled = true;
+        tableEl.hidden = true;
+        emptyEl.hidden = true;
+        setStatus('Loading recent analytics events...');
+
+        try {
+          const url = new URL('/.netlify/functions/analytics-events', window.location.origin);
+          url.searchParams.set('limit', String(DEFAULT_LIMIT));
+
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'x-license-operator-secret': secret,
+            },
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data && data.ok === true && Array.isArray(data.events)) {
+            renderEvents(data.events);
+            setStatus(`Loaded ${data.events.length} recent event${data.events.length === 1 ? '' : 's'}.`);
+            return;
+          }
+
+          if (data && (data.error === 'OPERATOR_SECRET_INVALID' || data.error === 'OPERATOR_SECRET_REQUIRED')) {
+            setStatus('Operator secret is invalid or missing.', 'error');
+            return;
+          }
+
+          setStatus('Unable to load analytics events.', 'error');
+        } catch {
+          setStatus('Unable to load analytics events.', 'error');
+        } finally {
+          loadButton.disabled = false;
+          exportButton.disabled = false;
+          clearSecretButton.disabled = false;
+        }
+      };
+
+      const exportCurrentEvents = () => {
+        if (!currentEvents.length) {
+          setStatus('No loaded analytics events to export.', 'error');
+          return;
+        }
+
+        const header = ['ts', 'event', 'source', 'resultCode', 'deviceId'];
+        const rows = currentEvents.map((item) =>
+          header
+            .map((field) => `"${String(item?.[field] ?? '').replaceAll('"', '""')}"`)
+            .join(','),
+        );
+
+        const csv = [header.join(','), ...rows].join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const date = new Date();
+        const filenameDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+        link.href = url;
+        link.download = `analytics-events-recent-${filenameDate}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setStatus(`Exported ${currentEvents.length} event${currentEvents.length === 1 ? '' : 's'}.`);
+      };
+
+      secretInput.value = loadSavedSecret();
+
+      loadButton.addEventListener('click', loadRecentEvents);
+
+      secretInput.addEventListener('keydown', async (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        await loadRecentEvents();
+      });
+
+      exportButton.addEventListener('click', exportCurrentEvents);
+
+      clearSecretButton.addEventListener('click', () => {
+        clearSavedSecret();
+        secretInput.value = '';
+        setStatus('Saved operator secret cleared.');
+      });
+    </script>
+  </body>
+</html>

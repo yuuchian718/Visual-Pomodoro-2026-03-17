@@ -5,6 +5,7 @@ import {
 } from "./lib/public-certificate-device-claim-store.mjs";
 import { getLicenseStore } from "./lib/license-store.mjs";
 import { jsonResponse } from "./lib/license-ops.mjs";
+import { ANALYTICS_EVENT, recordAnalyticsEventSafely } from "./lib/analytics-recorder.mjs";
 import {
   getPublicCertificateIssueStore,
   isValidPublicIssueEmail,
@@ -210,6 +211,16 @@ export const createPublicCertificateIssueHandler =
           code: result.code,
         });
       }
+
+      await recordAnalyticsEventSafely({
+        event: ANALYTICS_EVENT.CLAIM_SUCCESS,
+        ts: result.issuedAt || new Date().toISOString(),
+        source: "public-certificate-issue",
+        resultCode: result.reused ? "REUSED" : "ISSUED",
+        deviceId: body.deviceId,
+        issueId: result.issueId,
+        reused: Boolean(result.reused),
+      });
 
       return respond(200, {
         ok: true,

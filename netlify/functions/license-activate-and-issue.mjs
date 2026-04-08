@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { activateLicense } from "./license-activate.mjs";
+import { ANALYTICS_EVENT, recordAnalyticsEventSafely } from "./lib/analytics-recorder.mjs";
 import { generatePermanentLicenseToken, normalizeDeviceId } from "./lib/formal-license-token.mjs";
 import { jsonResponse } from "./lib/license-ops.mjs";
 import { getLicenseStore, getLicenseStoreName, normalizeLicenseKey } from "./lib/license-store.mjs";
@@ -42,6 +43,28 @@ export const activateLicenseAndIssueFormalToken = async ({
   });
 
   if (!activationResult.body.ok) {
+    if (activationResult.body.error === "DEVICE_LIMIT_REACHED") {
+      await recordAnalyticsEventSafely({
+        event: ANALYTICS_EVENT.DEVICE_LIMIT_REACHED,
+        ts: nowIso,
+        source: "license-activate-and-issue",
+        resultCode: activationResult.body.error,
+        deviceId: normalizedDeviceId,
+        maxDevices: activationResult.body.license?.maxDevices,
+        usedDevices: activationResult.body.license?.usedDevices,
+        remainingDevices: activationResult.body.license?.remainingDevices,
+      });
+    } else {
+      await recordAnalyticsEventSafely({
+        event: ANALYTICS_EVENT.ACTIVATION_FAILED,
+        ts: nowIso,
+        source: "license-activate-and-issue",
+        resultCode: activationResult.body.error,
+        deviceId: normalizedDeviceId,
+        activationStatus: activationResult.body.device?.activationStatus,
+      });
+    }
+
     if (activationResult.body.error === "LICENSE_NOT_FOUND") {
       console.warn("[license-activate-and-issue] LICENSE_NOT_FOUND", {
         context: process.env.CONTEXT || "unknown",
@@ -63,6 +86,16 @@ export const activateLicenseAndIssueFormalToken = async ({
       privateKeyB64,
     });
 
+    await recordAnalyticsEventSafely({
+      event: ANALYTICS_EVENT.ACTIVATION_SUCCESS,
+      ts: nowIso,
+      source: "license-activate-and-issue",
+      resultCode: SUCCESS_CODE,
+      deviceId: normalizedDeviceId,
+      activationResult: activationResult.body.result,
+      activationStatus: activationResult.body.device?.activationStatus,
+    });
+
     return {
       statusCode: 200,
       body: {
@@ -78,6 +111,16 @@ export const activateLicenseAndIssueFormalToken = async ({
       },
     };
   } catch (error) {
+    await recordAnalyticsEventSafely({
+      event: ANALYTICS_EVENT.ACTIVATION_FAILED,
+      ts: nowIso,
+      source: "license-activate-and-issue",
+      resultCode: "FORMAL_TOKEN_ISSUE_FAILED",
+      deviceId: normalizedDeviceId,
+      activationResult: activationResult.body.result,
+      activationStatus: activationResult.body.device?.activationStatus,
+    });
+
     return {
       statusCode: 500,
       body: {

@@ -65,6 +65,17 @@ export const createLocalJsonStore = (storeName) => ({
     records[String(key)] = structuredClone(value);
     await writeStoreFile(storeName, records);
   },
+
+  async list(options = {}) {
+    const prefix = String(options?.prefix || "");
+    const records = await readStoreFile(storeName);
+    const blobs = Object.keys(records)
+      .filter((key) => (prefix ? key.startsWith(prefix) : true))
+      .sort()
+      .map((key) => ({ key }));
+
+    return { blobs };
+  },
 });
 
 const createLoggedStore = ({ storeName, backend, store }) => ({
@@ -91,6 +102,21 @@ const createLoggedStore = ({ storeName, backend, store }) => ({
         backend,
         storeName,
         key: String(key),
+        errorName: error?.name || "UnknownError",
+        errorMessage: error?.message || String(error),
+      });
+      throw error;
+    }
+  },
+
+  async list(options = {}) {
+    try {
+      return await store.list(options);
+    } catch (error) {
+      console.error("[local-dev-store] store.list failed", {
+        backend,
+        storeName,
+        prefix: String(options?.prefix || ""),
         errorName: error?.name || "UnknownError",
         errorMessage: error?.message || String(error),
       });
