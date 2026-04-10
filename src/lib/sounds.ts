@@ -12,6 +12,25 @@ export class SoundManager {
     }
   }
 
+  private withReadyContext(run: (ctx: AudioContext) => void) {
+    this.init();
+    if (!this.audioCtx) return;
+
+    if (this.audioCtx.state === 'suspended') {
+      void this.audioCtx.resume()
+        .then(() => {
+          if (!this.audioCtx) return;
+          run(this.audioCtx);
+        })
+        .catch(() => {
+          // Keep silent on resume failures; caller side remains stable.
+        });
+      return;
+    }
+
+    run(this.audioCtx);
+  }
+
   setTickType(type: TickType) {
     this.tickType = type;
   }
@@ -21,104 +40,101 @@ export class SoundManager {
   }
 
   playTick() {
-    this.init();
-    if (!this.audioCtx) return;
+    this.withReadyContext((ctx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    const osc = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
+      switch (this.tickType) {
+        case 'wood':
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(400, ctx.currentTime);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+          break;
+        case 'digital':
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(1200, ctx.currentTime);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.02);
+          break;
+        default: // classic
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+      }
 
-    switch (this.tickType) {
-      case 'wood':
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(400, this.audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.03);
-        break;
-      case 'digital':
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(1200, this.audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.05, this.audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.02);
-        break;
-      default: // classic
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, this.audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.05);
-    }
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc.connect(gain);
-    gain.connect(this.audioCtx.destination);
-
-    osc.start();
-    osc.stop(this.audioCtx.currentTime + 0.05);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.05);
+    });
   }
 
   playAlarm(secondsLeft: number) {
-    this.init();
-    if (!this.audioCtx) return;
+    this.withReadyContext((ctx) => {
+      const now = ctx.currentTime;
 
-    const now = this.audioCtx.currentTime;
-
-    switch (this.alarmType) {
-      case 'pulse':
-        const oscP = this.audioCtx.createOscillator();
-        const gainP = this.audioCtx.createGain();
-        oscP.type = 'sine';
-        oscP.frequency.setValueAtTime(660, now);
-        gainP.gain.setValueAtTime(0.2, now);
-        gainP.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        oscP.connect(gainP);
-        gainP.connect(this.audioCtx.destination);
-        oscP.start(now);
-        oscP.stop(now + 0.1);
-        break;
-      case 'chime':
-        [523.25, 659.25, 783.99].forEach((f, i) => {
-          const oscC = this.audioCtx.createOscillator();
-          const gainC = this.audioCtx.createGain();
-          oscC.type = 'sine';
-          oscC.frequency.setValueAtTime(f, now + i * 0.05);
-          gainC.gain.setValueAtTime(0.1, now + i * 0.05);
-          gainC.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.3);
-          oscC.connect(gainC);
-          gainC.connect(this.audioCtx.destination);
-          oscC.start(now + i * 0.05);
-          oscC.stop(now + i * 0.05 + 0.3);
-        });
-        break;
-      default: // classic
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
-        const freq = 440 + (10 - secondsLeft) * 50;
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        osc.connect(gain);
-        gain.connect(this.audioCtx.destination);
-        osc.start();
-        osc.stop(now + 0.3);
-    }
+      switch (this.alarmType) {
+        case 'pulse':
+          const oscP = ctx.createOscillator();
+          const gainP = ctx.createGain();
+          oscP.type = 'sine';
+          oscP.frequency.setValueAtTime(660, now);
+          gainP.gain.setValueAtTime(0.2, now);
+          gainP.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          oscP.connect(gainP);
+          gainP.connect(ctx.destination);
+          oscP.start(now);
+          oscP.stop(now + 0.1);
+          break;
+        case 'chime':
+          [523.25, 659.25, 783.99].forEach((f, i) => {
+            const oscC = ctx.createOscillator();
+            const gainC = ctx.createGain();
+            oscC.type = 'sine';
+            oscC.frequency.setValueAtTime(f, now + i * 0.05);
+            gainC.gain.setValueAtTime(0.1, now + i * 0.05);
+            gainC.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.3);
+            oscC.connect(gainC);
+            gainC.connect(ctx.destination);
+            oscC.start(now + i * 0.05);
+            oscC.stop(now + i * 0.05 + 0.3);
+          });
+          break;
+        default: // classic
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const freq = 440 + (10 - secondsLeft) * 50;
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(now + 0.3);
+      }
+    });
   }
 
   playFinish() {
-    this.init();
-    if (!this.audioCtx) return;
+    this.withReadyContext((ctx) => {
+      const now = ctx.currentTime;
+      [440, 554.37, 659.25].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-    const now = this.audioCtx.currentTime;
-    [440, 554.37, 659.25].forEach((freq, i) => {
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        gain.gain.setValueAtTime(0.2, now + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.5);
 
-      osc.frequency.setValueAtTime(freq, now + i * 0.1);
-      gain.gain.setValueAtTime(0.2, now + i * 0.1);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
 
-      osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
-
-      osc.start(now + i * 0.1);
-      osc.stop(now + i * 0.1 + 0.5);
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.5);
+      });
     });
   }
 }

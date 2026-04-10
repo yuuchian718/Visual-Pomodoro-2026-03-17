@@ -15,6 +15,12 @@ export const localeOptions: Array<{
 
 type MessageDictionary = {
   authGateLoading: string;
+  quickStats: {
+    title: string;
+    today: string;
+    streak: string;
+    total: string;
+  };
   timerControls: {
     resetTitle: string;
     settingsTitle: string;
@@ -38,6 +44,9 @@ type MessageDictionary = {
     customDurationError: string;
     backgroundImage: string;
     uploadImage: string;
+    uploadDynamicBackground: string;
+    dynamicBackgroundHint: string;
+    clear: string;
     premium: string;
     customBackgroundsHint: string;
     soundModes: string;
@@ -104,6 +113,12 @@ type MessageDictionary = {
 export const messages: Record<Locale, MessageDictionary> = {
   en: {
     authGateLoading: 'Loading access',
+    quickStats: {
+      title: 'Focus Record',
+      today: 'Today',
+      streak: 'Streak',
+      total: 'Total',
+    },
     timerControls: {
       resetTitle: 'Reset',
       settingsTitle: 'Settings',
@@ -127,6 +142,9 @@ export const messages: Record<Locale, MessageDictionary> = {
       customDurationError: 'Enter a whole number from 1 to 240.',
       backgroundImage: 'Background Image',
       uploadImage: 'Upload Image',
+      uploadDynamicBackground: 'Upload Dynamic Background',
+      dynamicBackgroundHint: 'Dynamic background (MP4/WebM, up to 25MB) is available for the current session only.',
+      clear: 'Clear',
       premium: 'Premium',
       customBackgroundsHint: 'Premium unlocks custom backgrounds',
       soundModes: 'Sound Modes',
@@ -193,6 +211,12 @@ export const messages: Record<Locale, MessageDictionary> = {
   },
   ja: {
     authGateLoading: 'アクセスを読み込み中',
+    quickStats: {
+      title: '記録',
+      today: '今日',
+      streak: '連続',
+      total: '累計',
+    },
     timerControls: {
       resetTitle: 'リセット',
       settingsTitle: '設定',
@@ -216,6 +240,9 @@ export const messages: Record<Locale, MessageDictionary> = {
       customDurationError: '1〜240 の整数を入力してください。',
       backgroundImage: '背景画像',
       uploadImage: '画像をアップロード',
+      uploadDynamicBackground: '動画背景をアップロード',
+      dynamicBackgroundHint: '動画背景（MP4/WebM、最大25MB）はこのセッション中のみ利用できます。',
+      clear: 'クリア',
       premium: 'プレミアム',
       customBackgroundsHint: 'プレミアムでカスタム背景が使えます',
       soundModes: 'サウンド',
@@ -282,6 +309,12 @@ export const messages: Record<Locale, MessageDictionary> = {
   },
   zh: {
     authGateLoading: '正在加载访问状态',
+    quickStats: {
+      title: '学习记录',
+      today: '今日',
+      streak: '连续',
+      total: '累计',
+    },
     timerControls: {
       resetTitle: '重置',
       settingsTitle: '设置',
@@ -305,6 +338,9 @@ export const messages: Record<Locale, MessageDictionary> = {
       customDurationError: '请输入 1 到 240 的整数。',
       backgroundImage: '背景图片',
       uploadImage: '上传图片',
+      uploadDynamicBackground: '上传动态背景',
+      dynamicBackgroundHint: '动态背景（MP4/WebM，最大 25MB）仅在当前会话可用。',
+      clear: '清除',
       premium: '高级版',
       customBackgroundsHint: '高级版可解锁自定义背景',
       soundModes: '声音模式',

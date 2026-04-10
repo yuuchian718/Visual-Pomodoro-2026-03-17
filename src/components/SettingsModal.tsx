@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Timer, Lock, ArrowUpRight, Share2 } from 'lucide-react';
+import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Timer, Lock, ArrowUpRight, Share2, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TickType, AlarmType } from '../lib/sounds';
 import type {AccessState} from '../lib/access';
@@ -31,13 +31,19 @@ interface SettingsModalProps {
   durations: number[];
   onDurationChange: (d: number) => void;
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearImageBackground: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onVideoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearDynamicBackground: () => void;
+  videoInputRef: React.RefObject<HTMLInputElement | null>;
+  bgVideoName: string | null;
   tickType: TickType;
   onTickTypeChange: (t: TickType) => void;
   alarmType: AlarmType;
   onAlarmTypeChange: (a: AlarmType) => void;
   bgMusicName: string | null;
   onMusicUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearMusic: () => void;
   musicInputRef: React.RefObject<HTMLInputElement | null>;
   accessState: AccessState;
   onSaveLicenseToken: (token: string) => Promise<void>;
@@ -53,13 +59,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   durations,
   onDurationChange,
   onImageUpload,
+  onClearImageBackground,
   fileInputRef,
+  onVideoUpload,
+  onClearDynamicBackground,
+  videoInputRef,
+  bgVideoName,
   tickType,
   onTickTypeChange,
   alarmType,
   onAlarmTypeChange,
   bgMusicName,
   onMusicUpload,
+  onClearMusic,
   musicInputRef,
   accessState,
   onSaveLicenseToken,
@@ -83,6 +95,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const upgradeUrl = getUpgradeUrl();
   const parsedCustomDuration = parseCustomDurationInput(customDurationInput);
   const hasValidCustomDuration = parsedCustomDuration !== null;
+  const uploadRowClass = cn(
+    "flex w-full items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 transition-all",
+    canUseBackgroundFeatures
+      ? "bg-white/5 border-white/20 hover:bg-white/10"
+      : "bg-white/[0.035] border-white/10 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
+  );
+  const uploadActionButtonClass = cn(
+    "inline-flex min-w-0 items-center gap-3 text-left",
+    canUseBackgroundFeatures ? "text-zinc-200" : "text-zinc-500"
+  );
+  const clearButtonClass =
+    "inline-flex items-center rounded-lg border border-white/16 bg-white/[0.08] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/85 transition-colors hover:bg-white/[0.14]";
+  const uploadMusicRowClass = cn(
+    "flex w-full items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 transition-all",
+    canUseMusic
+      ? "bg-white/5 border-white/20 hover:bg-white/10"
+      : "bg-white/[0.035] border-white/10 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
+  );
+  const stopUploadRowPropagation = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+  };
 
   const currentLocaleOption = options.find((option) => option.value === locale) ?? options[0];
 
@@ -331,34 +364,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <label className="mb-4 block text-sm font-medium text-zinc-300 uppercase tracking-widest">
                   {copy.backgroundImage}
                 </label>
-                <div className="flex gap-4">
-                  <button
+                <div className="space-y-3">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-disabled={!canUseBackgroundFeatures}
                     onClick={() => {
                       if (!canUseBackgroundFeatures) {
                         return;
                       }
                       fileInputRef.current?.click();
                     }}
-                    className={cn(
-                      "flex flex-1 items-center justify-between gap-3 rounded-xl py-4 px-4 transition-all active:scale-[0.99] border border-dashed",
-                      canUseBackgroundFeatures
-                        ? "bg-white/5 border-white/20 hover:bg-white/10"
-                        : "bg-white/[0.035] border-white/10 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
-                    )}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                      }
+                      event.preventDefault();
+                      if (!canUseBackgroundFeatures) {
+                        return;
+                      }
+                      fileInputRef.current?.click();
+                    }}
+                    className={uploadRowClass}
                   >
-                    <span className="flex items-center gap-3 min-w-0">
+                    <div className={uploadActionButtonClass}>
                       <ImageIcon className="h-5 w-5 shrink-0" />
-                      <span className="text-sm font-medium text-left">
-                        {copy.uploadImage}
-                      </span>
-                    </span>
-                    {!canUseBackgroundFeatures && (
-                      <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
-                        <Lock className="h-3.5 w-3.5" />
-                        {copy.premium}
-                      </span>
-                    )}
-                  </button>
+                      <span className="truncate text-sm font-medium">{copy.uploadImage}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 shrink-0" onClick={stopUploadRowPropagation}>
+                      {!canUseBackgroundFeatures && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
+                          <Lock className="h-3.5 w-3.5" />
+                          {copy.premium}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={onClearImageBackground}
+                        className={clearButtonClass}
+                      >
+                        {copy.clear}
+                      </button>
+                    </div>
+                  </div>
                   <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -366,10 +414,66 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="hidden" 
                     accept="image/*"
                   />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-disabled={!canUseBackgroundFeatures}
+                    onClick={() => {
+                      if (!canUseBackgroundFeatures) {
+                        return;
+                      }
+                      videoInputRef.current?.click();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                      }
+                      event.preventDefault();
+                      if (!canUseBackgroundFeatures) {
+                        return;
+                      }
+                      videoInputRef.current?.click();
+                    }}
+                    className={uploadRowClass}
+                  >
+                    <div className={uploadActionButtonClass}>
+                      <Play className="h-5 w-5 shrink-0" />
+                      <span className="truncate text-sm font-medium">
+                        {bgVideoName || copy.uploadDynamicBackground}
+                      </span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 shrink-0" onClick={stopUploadRowPropagation}>
+                      {!canUseBackgroundFeatures && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
+                          <Lock className="h-3.5 w-3.5" />
+                          {copy.premium}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={onClearDynamicBackground}
+                        className={clearButtonClass}
+                      >
+                        {copy.clear}
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    ref={videoInputRef}
+                    onChange={onVideoUpload}
+                    className="hidden"
+                    accept="video/mp4,video/webm"
+                  />
                 </div>
                 {!canUseBackgroundFeatures && (
                   <p className="mt-3 text-xs text-white/38">
                     {copy.customBackgroundsHint}
+                  </p>
+                )}
+                {canUseBackgroundFeatures && (
+                  <p className="mt-3 text-xs text-white/38">
+                    {copy.dynamicBackgroundHint}
                   </p>
                 )}
               </section>
@@ -435,33 +539,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <Music2 className="h-3 w-3" />
                       {copy.backgroundMusic}
                     </div>
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-disabled={!canUseMusic}
                       onClick={() => {
                         if (!canUseMusic) {
                           return;
                         }
                         musicInputRef.current?.click();
                       }}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all active:scale-[0.99] border",
-                        canUseMusic
-                          ? "bg-white/5 border-white/5 hover:bg-white/10"
-                          : "bg-white/[0.035] border-white/8 text-zinc-500 opacity-70 hover:bg-white/[0.05]"
-                      )}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') {
+                          return;
+                        }
+                        event.preventDefault();
+                        if (!canUseMusic) {
+                          return;
+                        }
+                        musicInputRef.current?.click();
+                      }}
+                      className={uploadMusicRowClass}
                     >
-                      <span className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={cn(
+                          "inline-flex min-w-0 items-center gap-3 text-left",
+                          canUseMusic ? "text-zinc-200" : "text-zinc-500"
+                        )}
+                      >
                         <Music2 className={cn("h-4 w-4 shrink-0", canUseMusic ? "text-blue-400" : "text-zinc-500")} />
-                        <span className={cn("text-sm truncate", canUseMusic ? "text-zinc-200" : "text-zinc-500")}>
+                        <span className="truncate text-sm font-medium">
                           {bgMusicName || copy.uploadMusicFile}
                         </span>
-                      </span>
-                      {canUseMusic || (
-                        <span className="inline-flex items-center gap-2 shrink-0 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
-                          <Lock className="h-3.5 w-3.5" />
-                          {copy.premium}
-                        </span>
-                      )}
-                    </button>
+                      </div>
+                      <div className="inline-flex items-center gap-2 shrink-0" onClick={stopUploadRowPropagation}>
+                        {!canUseMusic && (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-white/45">
+                            <Lock className="h-3.5 w-3.5" />
+                            {copy.premium}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={onClearMusic}
+                          className={clearButtonClass}
+                        >
+                          {copy.clear}
+                        </button>
+                      </div>
+                    </div>
                     <input 
                       type="file" 
                       ref={musicInputRef} 
