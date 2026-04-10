@@ -91,6 +91,7 @@ export default function App({
   const [screenWakeLockRequested, setScreenWakeLockRequested] = useState(false);
   const [isQuickStatsOpen, setIsQuickStatsOpen] = useState(false);
   const [studyRecord, setStudyRecord] = useState<StudyRecord>(() => loadAndSyncStudyRecord());
+  const [, setViewportSyncTick] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
@@ -374,6 +375,36 @@ export default function App({
       document.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [isQuickStatsOpen]);
+
+  React.useEffect(() => {
+    let rafId: number | null = null;
+    const triggerViewportSync = () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(() => {
+        setViewportSyncTick((prev) => (prev + 1) % 1000000);
+      });
+    };
+
+    const viewport = window.visualViewport;
+    if (viewport) {
+      viewport.addEventListener('resize', triggerViewportSync);
+    } else {
+      window.addEventListener('resize', triggerViewportSync);
+    }
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      if (viewport) {
+        viewport.removeEventListener('resize', triggerViewportSync);
+      } else {
+        window.removeEventListener('resize', triggerViewportSync);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     const synced = loadAndSyncStudyRecord();

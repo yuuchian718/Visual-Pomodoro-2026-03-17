@@ -15,20 +15,19 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative flex w-full h-[50dvh] max-md:landscape:h-[34dvh] md:h-auto items-center justify-center"
+      className="relative flex h-[50dvh] w-full items-center justify-center max-md:landscape:h-[38dvh] md:h-auto"
     >
       <div
         className={cn(
-          'relative flex max-w-full items-baseline justify-center gap-1 px-2 md:gap-4',
-          hasThreeDigitMinutes && 'max-md:landscape:items-center',
+          'relative flex max-w-full items-center justify-center gap-1 px-2 md:gap-4',
         )}
       >
         <h1
           className={cn(
             'font-black leading-none tracking-tighter text-white select-none transition-opacity duration-300 animate-glow',
             hasThreeDigitMinutes
-              ? 'text-[25vw] max-md:landscape:text-[18vw] md:text-[26vw]'
-              : 'text-[38vw] max-md:landscape:text-[24vw] md:text-[28vw]',
+              ? 'text-[clamp(7.8rem,25vw,22rem)] max-md:landscape:text-[clamp(6.4rem,18vw,15rem)] md:text-[clamp(9.5rem,26vw,28rem)]'
+              : 'text-[clamp(10.5rem,38vw,30rem)] max-md:landscape:text-[clamp(8rem,24vw,18rem)] md:text-[clamp(12rem,28vw,32rem)]',
             isActive ? 'opacity-100' : 'opacity-80',
           )}
           style={{
@@ -53,10 +52,10 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
 
         <span
           className={cn(
-            'font-black leading-none text-white/40 select-none',
+            'font-black leading-none text-white/40 select-none self-center',
             hasThreeDigitMinutes
-              ? 'text-[13vw] mb-[4vw] max-md:landscape:text-[9vw] max-md:landscape:mb-0 md:text-[13vw] md:mb-[3vw]'
-              : 'text-[20vw] mb-[8vw] max-md:landscape:text-[12vw] max-md:landscape:mb-[3vw] md:text-[15vw] md:mb-[4vw]',
+              ? 'text-[clamp(4.2rem,13vw,8.5rem)] max-md:landscape:text-[clamp(3.2rem,9vw,6rem)] md:text-[clamp(4.8rem,13vw,9rem)]'
+              : 'text-[clamp(5.8rem,20vw,12rem)] max-md:landscape:text-[clamp(4.2rem,12vw,7.5rem)] md:text-[clamp(5.5rem,15vw,10rem)]',
           )}
         >
           :
@@ -66,8 +65,8 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
           className={cn(
             'font-black leading-none tracking-tighter animate-glow select-none transition-opacity duration-300 text-black/40',
             hasThreeDigitMinutes
-              ? 'text-[21vw] max-md:landscape:text-[15vw] md:text-[22vw]'
-              : 'text-[32vw] max-md:landscape:text-[20vw] md:text-[24vw]',
+              ? 'text-[clamp(7.2rem,21vw,18rem)] max-md:landscape:text-[clamp(5.5rem,15vw,11rem)] md:text-[clamp(8rem,22vw,20rem)]'
+              : 'text-[clamp(9.2rem,32vw,24rem)] max-md:landscape:text-[clamp(6.8rem,20vw,14rem)] md:text-[clamp(10rem,24vw,24rem)]',
           )}
           style={{
             textShadow: `
