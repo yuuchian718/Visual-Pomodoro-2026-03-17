@@ -4,6 +4,8 @@ import { soundManager, TickType, AlarmType } from './lib/sounds';
 import { TimerDisplay } from './components/TimerDisplay';
 import { TimerControls } from './components/TimerControls';
 import { SettingsModal } from './components/SettingsModal';
+import {TomatoScatterLayer} from './components/TomatoScatterLayer';
+import {TomatoTrayLayer} from './components/TomatoTrayLayer';
 import type {AccessState} from './lib/access';
 import type {CommercialActivationResult} from './components/AuthPanel';
 import {clearStoredBackgroundImage, resolveBackgroundImage, storeBackgroundImage} from './lib/background-image';
@@ -12,13 +14,39 @@ import {useLocale} from './lib/locale';
 import {
   addStudySegment,
   loadAndSyncStudyRecord,
+  resetStudyRecord,
   type StudyRecord,
 } from './lib/study-record';
+import {
+  appendTomatoHarvestEntry,
+  clearSeededTomatoHarvestTestData,
+  createTomatoHarvestEntry,
+  loadTomatoHarvestState,
+  moveFullScatterTomatoesToTray,
+  moveScatterFullTomatoToTrayById,
+  removeAllIncompleteTomatoes,
+  removeTomatoHarvestEntry,
+  SCATTER_VISIBLE_CAP,
+  seedTomatoHarvestTestData,
+  type TomatoHarvestEntry,
+  updateTomatoCustomPosition,
+} from './lib/tomato-harvest';
 
 const DURATIONS = [90, 70, 60, 45, 30, 25, 15, 5];
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1920";
 const DEFAULT_FREE_DURATION = 25;
 const STUDY_RECORD_GATE_MS = 5000;
+const TOMATO_MIN_EFFECTIVE_SECONDS = 5;
+const TRAY_COLLAPSED_STORAGE_KEY = 'visual-pomodoro-tray-collapsed-v1';
+const TOMATO_TRAY_GHOST_MS = 190;
+const TOMATO_SIZE_PX: Record<TomatoHarvestEntry['sizeTier'], number> = {
+  XS: 34,
+  S: 40,
+  M: 46,
+  L: 52,
+  XL: 58,
+  XXL: 64,
+};
 
 type WakeLockSentinelLike = {
   released: boolean;
@@ -41,6 +69,25 @@ type BgMusicAudioSnapshot = {
   readyState: number;
   networkState: number;
   error: string | null;
+};
+
+type TomatoTrayGhost = {
+  id: string;
+  startXLocal: number;
+  startYLocal: number;
+  targetXLocal: number;
+  targetYLocal: number;
+  sizePx: number;
+  animate: boolean;
+};
+
+type PendingTrayStore = {
+  id: string;
+  startXLocal: number;
+  startYLocal: number;
+  fallbackTargetXLocal: number;
+  fallbackTargetYLocal: number;
+  sizePx: number;
 };
 
 declare global {
@@ -91,6 +138,20 @@ export default function App({
   const [screenWakeLockRequested, setScreenWakeLockRequested] = useState(false);
   const [isQuickStatsOpen, setIsQuickStatsOpen] = useState(false);
   const [studyRecord, setStudyRecord] = useState<StudyRecord>(() => loadAndSyncStudyRecord());
+  const [scatterTomatoes, setScatterTomatoes] = useState<TomatoHarvestEntry[]>(() =>
+    loadTomatoHarvestState().entries.filter((entry) => entry.location === 'SCATTER'),
+  );
+  const [trayTomatoes, setTrayTomatoes] = useState<TomatoHarvestEntry[]>(() =>
+    loadTomatoHarvestState().entries.filter((entry) => entry.location === 'TRAY' && entry.damageTier === 'FULL'),
+  );
+  const [isTrayCollapsed, setIsTrayCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.localStorage.getItem(TRAY_COLLAPSED_STORAGE_KEY) === '1';
+  });
+  const [trayGhost, setTrayGhost] = useState<TomatoTrayGhost | null>(null);
+  const [pendingTrayStore, setPendingTrayStore] = useState<PendingTrayStore | null>(null);
   const [, setViewportSyncTick] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,10 +162,14 @@ export default function App({
   const bgVideoUrlRef = useRef<string | null>(null);
   const bgMusicUrlRef = useRef<string | null>(null);
   const quickStatsWrapperRef = useRef<HTMLDivElement | null>(null);
+  const trayLayerRef = useRef<HTMLDivElement | null>(null);
+  const trayGhostTimerRef = useRef<number | null>(null);
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
   const studyHasEffectivePhaseRef = useRef(false);
+  const tomatoSessionTargetMinutesRef = useRef<number | null>(null);
+  const tomatoSessionActualSecondsRef = useRef(0);
 
   const effectiveSfxEnabled = sfxEnabled && !isMusicPlaying;
   const { isActive, isFinished, toggle, reset, formatTime } = useTimer(duration, { soundEnabled: effectiveSfxEnabled });
@@ -118,6 +183,20 @@ export default function App({
     const minutes = Math.floor((safe % 3600) / 60);
     const secs = safe % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }, []);
+
+  const syncTomatoViews = React.useCallback((entries: TomatoHarvestEntry[]) => {
+    setScatterTomatoes(entries.filter((entry) => entry.location === 'SCATTER'));
+    setTrayTomatoes(entries.filter((entry) => entry.location === 'TRAY' && entry.damageTier === 'FULL'));
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (trayGhostTimerRef.current !== null) {
+        window.clearTimeout(trayGhostTimerRef.current);
+        trayGhostTimerRef.current = null;
+      }
+    };
   }, []);
 
   const clearStudyGateTimer = React.useCallback(() => {
@@ -134,7 +213,13 @@ export default function App({
     studyHasEffectivePhaseRef.current = false;
   }, [clearStudyGateTimer]);
 
+  const resetTomatoSessionTracking = React.useCallback(() => {
+    tomatoSessionTargetMinutesRef.current = null;
+    tomatoSessionActualSecondsRef.current = 0;
+  }, []);
+
   const flushStudySegment = React.useCallback(() => {
+    let flushedSeconds = 0;
     const nowMs = Date.now();
     const pendingStartAt = studyPendingStartAtRef.current;
 
@@ -148,16 +233,49 @@ export default function App({
 
     const effectiveStartAt = studyEffectiveStartAtRef.current;
     if (effectiveStartAt !== null && nowMs > effectiveStartAt) {
+      flushedSeconds = Math.max(0, Math.floor((nowMs - effectiveStartAt) / 1000));
       const updated = addStudySegment(effectiveStartAt, nowMs, nowMs);
       setStudyRecord(updated);
       studyHasEffectivePhaseRef.current = true;
+      tomatoSessionActualSecondsRef.current += flushedSeconds;
     } else {
       setStudyRecord(loadAndSyncStudyRecord(nowMs));
     }
 
     studyEffectiveStartAtRef.current = null;
     studyPendingStartAtRef.current = null;
+    return flushedSeconds;
   }, []);
+
+  const finalizeTomatoSession = React.useCallback(
+    (reason: 'COMPLETED' | 'ENDED') => {
+      flushStudySegment();
+
+      const targetMinutes = tomatoSessionTargetMinutesRef.current;
+      const actualSeconds = tomatoSessionActualSecondsRef.current;
+      if (targetMinutes === null || actualSeconds < TOMATO_MIN_EFFECTIVE_SECONDS) {
+        resetTomatoSessionTracking();
+        return;
+      }
+
+      const entry = createTomatoHarvestEntry({
+        targetMinutes,
+        actualSeconds,
+        createdAt: Date.now(),
+      });
+
+      if (reason === 'COMPLETED') {
+        entry.damageTier = 'FULL';
+      } else if (entry.damageTier === 'FULL') {
+        entry.damageTier = 'LIGHT';
+      }
+
+      const next = appendTomatoHarvestEntry(entry);
+      syncTomatoViews(next.entries);
+      resetTomatoSessionTracking();
+    },
+    [flushStudySegment, resetTomatoSessionTracking, syncTomatoViews],
+  );
   const getBgMusicAudioSnapshot = React.useCallback((): BgMusicAudioSnapshot | null => {
     const audio = audioRef.current;
     if (!audio) {
@@ -409,13 +527,30 @@ export default function App({
   React.useEffect(() => {
     const synced = loadAndSyncStudyRecord();
     setStudyRecord(synced);
-  }, []);
+    const harvest = loadTomatoHarvestState();
+    syncTomatoViews(harvest.entries);
+  }, [syncTomatoViews]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(TRAY_COLLAPSED_STORAGE_KEY, isTrayCollapsed ? '1' : '0');
+    } catch {
+      // Keep UI behavior stable even if storage write fails.
+    }
+  }, [isTrayCollapsed]);
 
   React.useEffect(() => {
     if (!isActive) {
       clearStudyGateTimer();
       flushStudySegment();
       return;
+    }
+
+    if (tomatoSessionTargetMinutesRef.current === null) {
+      tomatoSessionTargetMinutesRef.current = duration;
     }
 
     const startedAt = Date.now();
@@ -444,8 +579,16 @@ export default function App({
   }, [clearStudyGateTimer, flushStudySegment, isActive]);
 
   React.useEffect(() => {
+    if (!isFinished) {
+      return;
+    }
+
+    finalizeTomatoSession('COMPLETED');
+  }, [finalizeTomatoSession, isFinished]);
+
+  React.useEffect(() => {
     const handlePageHide = () => {
-      flushStudySegment();
+      finalizeTomatoSession('ENDED');
     };
 
     window.addEventListener('pagehide', handlePageHide);
@@ -455,7 +598,7 @@ export default function App({
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handlePageHide);
     };
-  }, [flushStudySegment]);
+  }, [finalizeTomatoSession]);
 
   React.useEffect(() => {
     if (!canUseMusic) {
@@ -484,10 +627,13 @@ export default function App({
     }
 
     if (!isDurationAllowed(duration, accessState)) {
+      finalizeTomatoSession('ENDED');
+      resetStudySessionTracking();
+      resetTomatoSessionTracking();
       setDuration(DEFAULT_FREE_DURATION);
       reset(DEFAULT_FREE_DURATION);
     }
-  }, [accessState, duration, reset]);
+  }, [accessState, duration, finalizeTomatoSession, reset, resetStudySessionTracking, resetTomatoSessionTracking]);
 
   const releaseWakeLock = React.useCallback(async () => {
     const sentinel = wakeLockSentinelRef.current;
@@ -591,7 +737,9 @@ export default function App({
   ]);
 
   const handleReset = () => {
+    finalizeTomatoSession('ENDED');
     resetStudySessionTracking();
+    resetTomatoSessionTracking();
     reset(duration);
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -779,7 +927,9 @@ export default function App({
       return;
     }
 
+    finalizeTomatoSession('ENDED');
     resetStudySessionTracking();
+    resetTomatoSessionTracking();
     setDuration(d);
     reset(d);
     setShowSettings(false);
@@ -788,6 +938,129 @@ export default function App({
   const { minutes, seconds } = formatTime();
   const formattedToday = formatStudyDuration(studyRecord.todaySeconds);
   const formattedTotal = formatStudyDuration(studyRecord.totalSeconds);
+  const storableFullCount = React.useMemo(
+    () => scatterTomatoes.filter((entry) => entry.damageTier === 'FULL').length,
+    [scatterTomatoes],
+  );
+  const scatterTotalDataCount = scatterTomatoes.length;
+  const trayStoredCount = trayTomatoes.length;
+  const tomatoTotalCount = scatterTomatoes.length + trayTomatoes.length;
+  const scatterShownCount = Math.min(scatterTomatoes.length, SCATTER_VISIBLE_CAP);
+  const trayShownCount = Math.min(trayTomatoes.length, 16);
+  const isDev = import.meta.env.DEV;
+  const handleTomatoPositionCommit = React.useCallback((id: string, position: {xPct: number; yPct: number}) => {
+    const next = updateTomatoCustomPosition(id, position);
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleTomatoDelete = React.useCallback((id: string) => {
+    const next = removeTomatoHarvestEntry(id);
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleTomatoDeleteAllIncomplete = React.useCallback(() => {
+    const next = removeAllIncompleteTomatoes();
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleStoreFullTomatoes = React.useCallback(() => {
+    const next = moveFullScatterTomatoesToTray();
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleStoreSingleTomatoToTray = React.useCallback((id: string) => {
+    const next = moveScatterFullTomatoToTrayById(id);
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const canStoreToTrayAtPoint = React.useCallback(
+    (clientX: number, clientY: number) => {
+      if (isTrayCollapsed) {
+        return false;
+      }
+      const trayEl = trayLayerRef.current;
+      if (!trayEl) {
+        return false;
+      }
+      const rect = trayEl.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    },
+    [isTrayCollapsed],
+  );
+  const handleStoreSingleTomatoToTrayWithGhost = React.useCallback(
+    (id: string, pointer: {clientX: number; clientY: number}) => {
+      if (trayGhostTimerRef.current !== null) {
+        window.clearTimeout(trayGhostTimerRef.current);
+        trayGhostTimerRef.current = null;
+      }
+
+      const trayEl = trayLayerRef.current;
+      if (!trayEl) {
+        handleStoreSingleTomatoToTray(id);
+        return;
+      }
+
+      const rect = trayEl.getBoundingClientRect();
+      const entry = scatterTomatoes.find((item) => item.id === id);
+      const startXLocal = pointer.clientX - rect.left;
+      const startYLocal = pointer.clientY - rect.top;
+      const safeLeftLocal = rect.width * 0.25;
+      const safeRightLocal = rect.width * 0.75;
+      setPendingTrayStore({
+        id,
+        startXLocal,
+        startYLocal,
+        fallbackTargetXLocal: Math.min(safeRightLocal, Math.max(safeLeftLocal, startXLocal)),
+        fallbackTargetYLocal: rect.height * 0.72,
+        sizePx: entry ? TOMATO_SIZE_PX[entry.sizeTier] : TOMATO_SIZE_PX.M,
+      });
+    },
+    [handleStoreSingleTomatoToTray, scatterTomatoes],
+  );
+  const handleIncomingStoreTargetResolved = React.useCallback(
+    (target: {id: string; xLocal: number; yLocal: number} | null) => {
+      const pending = pendingTrayStore;
+      if (!pending) {
+        return;
+      }
+
+      if (target && target.id !== pending.id) {
+        return;
+      }
+
+      const targetXLocal = target?.xLocal ?? pending.fallbackTargetXLocal;
+      const targetYLocal = target?.yLocal ?? pending.fallbackTargetYLocal;
+
+      setTrayGhost({
+        id: pending.id,
+        startXLocal: pending.startXLocal,
+        startYLocal: pending.startYLocal,
+        targetXLocal,
+        targetYLocal,
+        sizePx: pending.sizePx,
+        animate: false,
+      });
+      setPendingTrayStore(null);
+
+      requestAnimationFrame(() => {
+        setTrayGhost((current) => (current && current.id === pending.id ? {...current, animate: true} : current));
+      });
+
+      trayGhostTimerRef.current = window.setTimeout(() => {
+        handleStoreSingleTomatoToTray(pending.id);
+        setTrayGhost((current) => (current && current.id === pending.id ? null : current));
+        trayGhostTimerRef.current = null;
+      }, TOMATO_TRAY_GHOST_MS);
+    },
+    [handleStoreSingleTomatoToTray, pendingTrayStore],
+  );
+  const handleSeedTestTomatoes = React.useCallback(() => {
+    const next = seedTomatoHarvestTestData();
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleClearSeededTomatoes = React.useCallback(() => {
+    const next = clearSeededTomatoHarvestTestData();
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
+  const handleResetAccumulatedTime = React.useCallback(() => {
+    const reset = resetStudyRecord();
+    setStudyRecord(reset);
+  }, []);
 
   return (
     <div className="relative min-h-screen h-dvh w-full overflow-hidden bg-black font-sans text-white">
@@ -812,6 +1085,23 @@ export default function App({
 
       {/* Main Content */}
       <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 max-md:landscape:py-4 px-8 max-md:landscape:px-4 overflow-y-auto">
+        <TomatoScatterLayer
+          entries={scatterTomatoes}
+          onPositionCommit={handleTomatoPositionCommit}
+          onDelete={handleTomatoDelete}
+          onDeleteAllIncomplete={handleTomatoDeleteAllIncomplete}
+          onStoreToTray={handleStoreSingleTomatoToTrayWithGhost}
+          canStoreToTrayAtPoint={canStoreToTrayAtPoint}
+        />
+        {!isTrayCollapsed && (
+          <TomatoTrayLayer
+            entries={trayTomatoes}
+            containerRef={trayLayerRef}
+            incomingGhost={trayGhost}
+            incomingStorePreviewId={pendingTrayStore?.id ?? null}
+            onIncomingStoreTargetResolved={handleIncomingStoreTargetResolved}
+          />
+        )}
         <div
           ref={quickStatsWrapperRef}
           className="pointer-events-auto absolute right-4 top-4 z-20 max-md:landscape:right-3 max-md:landscape:top-3"
@@ -824,27 +1114,128 @@ export default function App({
             aria-label={quickStatsCopy.title}
             aria-expanded={isQuickStatsOpen}
           >
-            🍅
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="h-[36px] w-[36px] text-white/90"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="13" r="6.5" />
+              <path d="M12 13V10.2" />
+              <path d="M12 13h2.8" />
+              <path d="M6.6 4.8L8.8 6.4" />
+              <path d="M17.4 4.8l-2.2 1.6" />
+              <path d="M9.4 3.8h5.2" />
+            </svg>
           </button>
           {isQuickStatsOpen && (
-            <div className="mt-2 w-44 rounded-2xl border border-white/20 bg-white/[0.10] p-3 text-left shadow-2xl shadow-black/35 backdrop-blur-xl">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/75">
+            <div className="mt-2 w-52 rounded-2xl border border-white/20 bg-white/[0.10] p-3 text-left shadow-2xl shadow-black/35 backdrop-blur-xl">
+              <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-white/75">
                 {quickStatsCopy.title}
               </p>
-              <div className="space-y-1.5 text-xs text-white/85">
-                <div className="flex items-center justify-between gap-3">
-                  <span>{quickStatsCopy.today}</span>
-                  <span className="text-white/65 tabular-nums">{formattedToday}</span>
+              <div className="rounded-lg border border-white/12 bg-black/15 px-2 py-1.5">
+                <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                  {quickStatsCopy.timeRecordTitle}
+                </p>
+                <div className="space-y-1.5 text-xs text-white/85">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{quickStatsCopy.today}</span>
+                    <span className="text-white/65 tabular-nums">{formattedToday}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{quickStatsCopy.streak}</span>
+                    <span className="text-white/65 tabular-nums">{studyRecord.streakDays}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{quickStatsCopy.total}</span>
+                    <span className="text-white/65 tabular-nums">{formattedTotal}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>{quickStatsCopy.streak}</span>
-                  <span className="text-white/65 tabular-nums">{studyRecord.streakDays}</span>
+                <button
+                  type="button"
+                  onClick={handleResetAccumulatedTime}
+                  className="mt-2 w-full rounded-md border border-white/12 bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-white/72 transition hover:bg-white/[0.10]"
+                >
+                  {quickStatsCopy.resetAccumulatedTime}
+                </button>
+              </div>
+              <div className="mt-2 rounded-lg border border-white/12 bg-black/20 px-2 py-1.5 text-[10px] text-white/75">
+                <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                  {quickStatsCopy.tomatoResultTitle}
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span>{quickStatsCopy.scatterFullData}</span>
+                  <span className="tabular-nums">{storableFullCount}</span>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>{quickStatsCopy.total}</span>
-                  <span className="text-white/65 tabular-nums">{formattedTotal}</span>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span>{quickStatsCopy.scatterTotalData}</span>
+                  <span className="tabular-nums">{scatterTotalDataCount}</span>
+                </div>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span>{quickStatsCopy.trayStored}</span>
+                  <span className="tabular-nums">{trayStoredCount}</span>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={handleStoreFullTomatoes}
+                disabled={storableFullCount === 0}
+                className="mt-3 w-full rounded-lg border border-white/18 bg-white/[0.10] px-2.5 py-1.5 text-[11px] font-medium text-white/90 transition hover:bg-white/[0.16] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {quickStatsCopy.storeScatterFull} ({storableFullCount})
+              </button>
+              {trayTomatoes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsTrayCollapsed((prev) => !prev)}
+                  className="mt-2 w-full rounded-lg border border-white/14 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-white/80 transition hover:bg-white/[0.12]"
+                >
+                  {isTrayCollapsed ? quickStatsCopy.showTray : quickStatsCopy.hideTray}
+                </button>
+              )}
+              {isDev && (
+                <>
+                  <div className="mt-2 rounded-lg border border-white/12 bg-black/25 px-2 py-1.5 text-[10px] text-white/75">
+                    <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                      {quickStatsCopy.debugTitle}
+                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{quickStatsCopy.totalData}</span>
+                      <span className="tabular-nums">{tomatoTotalCount}</span>
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <span>{quickStatsCopy.scatterDataShown}</span>
+                      <span className="tabular-nums">
+                        {scatterTomatoes.length} / {scatterShownCount}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <span>{quickStatsCopy.trayDataShown}</span>
+                      <span className="tabular-nums">
+                        {trayTomatoes.length} / {trayShownCount}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSeedTestTomatoes}
+                    className="mt-2 w-full rounded-lg border border-amber-200/30 bg-amber-100/10 px-2.5 py-1.5 text-[11px] font-medium text-amber-100/95 transition hover:bg-amber-100/18"
+                  >
+                    {quickStatsCopy.seedTestTomatoes}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearSeededTomatoes}
+                    className="mt-2 w-full rounded-lg border border-white/12 bg-white/[0.05] px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition hover:bg-white/[0.1]"
+                  >
+                    {quickStatsCopy.clearTestTomatoes}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

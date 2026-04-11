@@ -186,6 +186,11 @@ export const loadAndSyncStudyRecord = (nowMs = Date.now()): StudyRecord => {
   return synced;
 };
 
+export const resetStudyRecord = (nowMs = Date.now()): StudyRecord => {
+  const reset = createDefaultStudyRecord(nowMs);
+  return saveStudyRecord(reset);
+};
+
 export const addStudySegment = (
   startMs: number,
   endMs: number,
@@ -216,4 +221,3 @@ export const addStudySegment = (
 
   return saveStudyRecord(record);
 };
-

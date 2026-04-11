@@ -17,9 +17,24 @@ type MessageDictionary = {
   authGateLoading: string;
   quickStats: {
     title: string;
+    timeRecordTitle: string;
+    tomatoResultTitle: string;
     today: string;
     streak: string;
     total: string;
+    scatterFullData: string;
+    scatterTotalData: string;
+    trayStored: string;
+    storeScatterFull: string;
+    showTray: string;
+    hideTray: string;
+    debugTitle: string;
+    totalData: string;
+    scatterDataShown: string;
+    trayDataShown: string;
+    seedTestTomatoes: string;
+    clearTestTomatoes: string;
+    resetAccumulatedTime: string;
   };
   timerControls: {
     resetTitle: string;
@@ -114,10 +129,25 @@ export const messages: Record<Locale, MessageDictionary> = {
   en: {
     authGateLoading: 'Loading access',
     quickStats: {
-      title: 'Focus Record',
-      today: 'Today',
-      streak: 'Streak',
-      total: 'Total',
+      title: 'Focus Log',
+      timeRecordTitle: 'Time Progress',
+      tomatoResultTitle: 'Tomato Results',
+      today: 'Today Focus',
+      streak: 'Streak Days',
+      total: 'Total Focus Time',
+      scatterFullData: 'Completed Tomato Rounds',
+      scatterTotalData: 'Fragment Tomato Count',
+      trayStored: 'Stored Tomatoes',
+      storeScatterFull: 'Store Completed Tomatoes',
+      showTray: 'Show Tomato Tray',
+      hideTray: 'Hide Tomato Tray',
+      debugTitle: 'Debug',
+      totalData: 'Total (data)',
+      scatterDataShown: 'Scatter data / shown',
+      trayDataShown: 'Tray data / shown',
+      seedTestTomatoes: 'Seed 20 Test Tomatoes',
+      clearTestTomatoes: 'Clear Test Tomatoes',
+      resetAccumulatedTime: 'Reset Focus Totals',
     },
     timerControls: {
       resetTitle: 'Reset',
@@ -212,10 +242,25 @@ export const messages: Record<Locale, MessageDictionary> = {
   ja: {
     authGateLoading: 'アクセスを読み込み中',
     quickStats: {
-      title: '記録',
-      today: '今日',
-      streak: '連続',
-      total: '累計',
+      title: '集中記録',
+      timeRecordTitle: '時間の積み上げ',
+      tomatoResultTitle: 'トマトの成果',
+      today: '今日の集中',
+      streak: '連続日数',
+      total: '累計時間',
+      scatterFullData: '完了トマト数',
+      scatterTotalData: '欠けトマト数',
+      trayStored: '収納済みトマト',
+      storeScatterFull: '完了トマトをまとめて収納',
+      showTray: 'トレーを表示',
+      hideTray: 'トレーを隠す',
+      debugTitle: 'デバッグ',
+      totalData: '合計（データ）',
+      scatterDataShown: '散落 データ / 表示',
+      trayDataShown: 'トレイ データ / 表示',
+      seedTestTomatoes: 'テスト番茄 20 件を投入',
+      clearTestTomatoes: 'テスト番茄をクリア',
+      resetAccumulatedTime: '累計時間をリセット',
     },
     timerControls: {
       resetTitle: 'リセット',
@@ -310,10 +355,25 @@ export const messages: Record<Locale, MessageDictionary> = {
   zh: {
     authGateLoading: '正在加载访问状态',
     quickStats: {
-      title: '学习记录',
-      today: '今日',
-      streak: '连续',
-      total: '累计',
+      title: '专注记录',
+      timeRecordTitle: '时间积累',
+      tomatoResultTitle: '番茄成果',
+      today: '今日专注',
+      streak: '连续天数',
+      total: '累计时长',
+      scatterFullData: '完整番茄轮',
+      scatterTotalData: '碎片番茄数',
+      trayStored: '已收纳番茄',
+      storeScatterFull: '一键收纳番茄',
+      showTray: '显示托盘',
+      hideTray: '隐藏托盘',
+      debugTitle: '调试',
+      totalData: '总数（数据）',
+      scatterDataShown: '散落 数据 / 显示',
+      trayDataShown: '托盘 数据 / 显示',
+      seedTestTomatoes: '注入 20 个测试番茄',
+      clearTestTomatoes: '清除面板数据',
+      resetAccumulatedTime: '重置累计时间',
     },
     timerControls: {
       resetTitle: '重置',
