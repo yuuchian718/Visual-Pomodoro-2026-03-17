@@ -67,6 +67,8 @@ type MessageDictionary = {
     uploadImage: string;
     uploadDynamicBackground: string;
     dynamicBackgroundHint: string;
+    videoBackgroundUnsupported: string;
+    videoBackgroundPlayFailed: string;
     clear: string;
     premium: string;
     customBackgroundsHint: string;
@@ -186,6 +188,8 @@ export const messages: Record<Locale, MessageDictionary> = {
       uploadImage: 'Upload Image',
       uploadDynamicBackground: 'Upload Dynamic Background',
       dynamicBackgroundHint: 'Dynamic background (MP4/WebM, up to 25MB) is available for the current session only.',
+      videoBackgroundUnsupported: 'Dynamic background supports MP4/WebM up to 25MB.',
+      videoBackgroundPlayFailed: 'Dynamic background could not autoplay on this device.',
       clear: 'Clear',
       premium: 'Premium',
       customBackgroundsHint: 'Premium unlocks custom backgrounds',
@@ -305,6 +309,8 @@ export const messages: Record<Locale, MessageDictionary> = {
       uploadImage: '画像をアップロード',
       uploadDynamicBackground: '動画背景をアップロード',
       dynamicBackgroundHint: '動画背景（MP4/WebM、最大25MB）はこのセッション中のみ利用できます。',
+      videoBackgroundUnsupported: '動画背景は MP4/WebM（最大25MB）のみ対応です。',
+      videoBackgroundPlayFailed: 'この端末では動画背景の自動再生に失敗しました。',
       clear: 'クリア',
       premium: 'プレミアム',
       customBackgroundsHint: 'プレミアムでカスタム背景が使えます',
@@ -424,6 +430,8 @@ export const messages: Record<Locale, MessageDictionary> = {
       uploadImage: '上传图片',
       uploadDynamicBackground: '上传动态背景',
       dynamicBackgroundHint: '动态背景（MP4/WebM，最大 25MB）仅在当前会话可用。',
+      videoBackgroundUnsupported: '动态背景仅支持 MP4/WebM，且不超过 25MB。',
+      videoBackgroundPlayFailed: '当前设备未能自动播放动态背景。',
       clear: '清除',
       premium: '高级版',
       customBackgroundsHint: '高级版可解锁自定义背景',

@@ -69,6 +69,29 @@ export const TomatoTrayExpandedLayer: React.FC<TomatoTrayExpandedLayerProps> = (
     return formatDuration(totalSeconds);
   }, [formatDuration, trayEntries]);
 
+  const handleClearAllClick = React.useCallback(() => {
+    if (trayEntries.length === 0) {
+      return;
+    }
+    if (clearConfirmArmed) {
+      if (clearConfirmTimerRef.current !== null) {
+        window.clearTimeout(clearConfirmTimerRef.current);
+        clearConfirmTimerRef.current = null;
+      }
+      setClearConfirmArmed(false);
+      onClearAll();
+      return;
+    }
+    setClearConfirmArmed(true);
+    if (clearConfirmTimerRef.current !== null) {
+      window.clearTimeout(clearConfirmTimerRef.current);
+    }
+    clearConfirmTimerRef.current = window.setTimeout(() => {
+      setClearConfirmArmed(false);
+      clearConfirmTimerRef.current = null;
+    }, 1500);
+  }, [clearConfirmArmed, onClearAll, trayEntries.length]);
+
   const clearLongPressTimer = React.useCallback(() => {
     if (longPressTimerRef.current !== null) {
       window.clearTimeout(longPressTimerRef.current);
@@ -174,44 +197,25 @@ export const TomatoTrayExpandedLayer: React.FC<TomatoTrayExpandedLayerProps> = (
         >
           {closeLabel}
         </button>
-        <div className="mb-3 pr-14">
-          <p className="text-sm font-semibold text-white/90">{title}</p>
-          <div className="mt-1 mx-auto flex w-fit max-w-full items-center justify-center gap-5 text-xs text-white/65">
-            <p className="whitespace-nowrap rounded-md border border-white/8 bg-white/[0.03] px-2 py-0.5">
-              {countLabel}: <span className="tabular-nums text-white/85">{trayEntries.length}</span>
+        <button
+          type="button"
+          onClick={handleClearAllClick}
+          disabled={trayEntries.length === 0}
+          className="absolute right-3 top-[3.35rem] shrink-0 whitespace-nowrap rounded-md border border-white/14 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-medium text-white/78 transition hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {clearConfirmArmed ? clearConfirmLabel : clearLabel}
+        </button>
+        <div className="mx-auto mb-3 w-full max-w-[560px] pr-14">
+          <p className="text-center text-sm font-semibold text-white/90">{title}</p>
+          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-white/82 max-[520px]:grid-cols-1 max-[520px]:gap-y-2">
+            <p className="flex items-baseline justify-between text-[12px] max-[520px]:justify-start max-[520px]:gap-2">
+              <span className="text-white/62">{countLabel}</span>
+              <span className="font-semibold tabular-nums text-white/92">{trayEntries.length}</span>
             </p>
-            <p className="whitespace-nowrap rounded-md border border-white/8 bg-white/[0.03] px-2 py-0.5">
-              {totalDurationLabel}: <span className="tabular-nums text-white/85">{trayTotalDurationLabel}</span>
+            <p className="flex items-baseline justify-between text-[12px] max-[520px]:justify-start max-[520px]:gap-2">
+              <span className="text-white/62">{totalDurationLabel}</span>
+              <span className="font-semibold tabular-nums text-white/92">{trayTotalDurationLabel}</span>
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                if (trayEntries.length === 0) {
-                  return;
-                }
-                if (clearConfirmArmed) {
-                  if (clearConfirmTimerRef.current !== null) {
-                    window.clearTimeout(clearConfirmTimerRef.current);
-                    clearConfirmTimerRef.current = null;
-                  }
-                  setClearConfirmArmed(false);
-                  onClearAll();
-                  return;
-                }
-                setClearConfirmArmed(true);
-                if (clearConfirmTimerRef.current !== null) {
-                  window.clearTimeout(clearConfirmTimerRef.current);
-                }
-                clearConfirmTimerRef.current = window.setTimeout(() => {
-                  setClearConfirmArmed(false);
-                  clearConfirmTimerRef.current = null;
-                }, 1500);
-              }}
-              disabled={trayEntries.length === 0}
-              className="rounded-md border border-white/14 bg-white/[0.06] px-2 py-1 text-[10px] font-medium text-white/78 transition hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {clearConfirmArmed ? clearConfirmLabel : clearLabel}
-            </button>
           </div>
         </div>
         <div className="max-h-[68vh] overflow-y-auto rounded-xl border border-white/12 bg-white/[0.03] p-3">

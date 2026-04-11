@@ -124,6 +124,7 @@ export default function App({
 }: AppProps) {
   const {messages} = useLocale();
   const quickStatsCopy = messages.quickStats;
+  const settingsCopy = messages.settingsModal;
   const [duration, setDuration] = useState(25);
   const [bgImage, setBgImage] = useState(() => resolveBackgroundImage(DEFAULT_IMAGE));
   const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
@@ -133,6 +134,7 @@ export default function App({
   const [alarmType, setAlarmType] = useState<AlarmType>('classic');
   const [bgMusicUrl, setBgMusicUrl] = useState<string | null>(null);
   const [bgMusicName, setBgMusicName] = useState<string | null>(null);
+  const [bgVideoPlaybackNotice, setBgVideoPlaybackNotice] = useState<string | null>(null);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -161,12 +163,14 @@ export default function App({
   const musicInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockSentinelRef = useRef<WakeLockSentinelLike | null>(null);
   const bgVideoUrlRef = useRef<string | null>(null);
   const bgMusicUrlRef = useRef<string | null>(null);
   const quickStatsWrapperRef = useRef<HTMLDivElement | null>(null);
   const trayLayerRef = useRef<HTMLDivElement | null>(null);
   const trayGhostTimerRef = useRef<number | null>(null);
+  const bgVideoNoticeTimerRef = useRef<number | null>(null);
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
@@ -193,11 +197,26 @@ export default function App({
     setTrayTomatoes(entries.filter((entry) => entry.location === 'TRAY' && entry.damageTier === 'FULL'));
   }, []);
 
+  const showBgVideoNotice = React.useCallback((message: string) => {
+    setBgVideoPlaybackNotice(message);
+    if (bgVideoNoticeTimerRef.current !== null) {
+      window.clearTimeout(bgVideoNoticeTimerRef.current);
+    }
+    bgVideoNoticeTimerRef.current = window.setTimeout(() => {
+      setBgVideoPlaybackNotice(null);
+      bgVideoNoticeTimerRef.current = null;
+    }, 2200);
+  }, []);
+
   React.useEffect(() => {
     return () => {
       if (trayGhostTimerRef.current !== null) {
         window.clearTimeout(trayGhostTimerRef.current);
         trayGhostTimerRef.current = null;
+      }
+      if (bgVideoNoticeTimerRef.current !== null) {
+        window.clearTimeout(bgVideoNoticeTimerRef.current);
+        bgVideoNoticeTimerRef.current = null;
       }
     };
   }, []);
@@ -889,6 +908,7 @@ export default function App({
     const maxFileSizeBytes = 25 * 1024 * 1024;
 
     if (!allowedTypes.has(file.type) || file.size > maxFileSizeBytes) {
+      showBgVideoNotice(settingsCopy.videoBackgroundUnsupported);
       return;
     }
 
@@ -904,6 +924,7 @@ export default function App({
   };
 
   const handleVideoBackgroundError = () => {
+    showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
     if (bgVideoUrlRef.current) {
       URL.revokeObjectURL(bgVideoUrlRef.current);
       bgVideoUrlRef.current = null;
@@ -912,6 +933,50 @@ export default function App({
     setBgVideoUrl(null);
     setBgVideoName(null);
   };
+
+  React.useEffect(() => {
+    const video = bgVideoRef.current;
+    if (!video || !bgVideoUrl) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const tryPlay = async () => {
+      if (cancelled) {
+        return;
+      }
+      try {
+        video.load();
+        await video.play();
+      } catch {
+        if (!cancelled) {
+          showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
+        }
+      }
+    };
+
+    const retryIfPaused = () => {
+      if (!video.paused || cancelled) {
+        return;
+      }
+      void video.play().catch(() => {
+        if (!cancelled) {
+          showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
+        }
+      });
+    };
+
+    video.addEventListener('loadeddata', retryIfPaused);
+    video.addEventListener('canplay', retryIfPaused);
+    void tryPlay();
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('loadeddata', retryIfPaused);
+      video.removeEventListener('canplay', retryIfPaused);
+    };
+  }, [bgVideoUrl, settingsCopy.videoBackgroundPlayFailed, showBgVideoNotice]);
 
   const handleTickTypeChange = (type: TickType) => {
     setTickType(type);
@@ -1078,6 +1143,7 @@ export default function App({
       />
       {bgVideoUrl && (
         <video
+          ref={bgVideoRef}
           key={bgVideoUrl}
           className="absolute inset-0 h-full w-full object-cover"
           src={bgVideoUrl}
@@ -1089,6 +1155,11 @@ export default function App({
         />
       )}
       <div className="absolute inset-0 bg-black/40" />
+      {bgVideoPlaybackNotice && (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-xl border border-white/18 bg-black/55 px-3 py-2 text-xs text-white/90 shadow-lg shadow-black/35 backdrop-blur-md">
+          {bgVideoPlaybackNotice}
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 max-md:landscape:py-4 px-8 max-md:landscape:px-4 overflow-y-auto">
