@@ -6,6 +6,7 @@ import { TimerControls } from './components/TimerControls';
 import { SettingsModal } from './components/SettingsModal';
 import {TomatoScatterLayer} from './components/TomatoScatterLayer';
 import {TomatoTrayLayer} from './components/TomatoTrayLayer';
+import {TomatoTrayExpandedLayer} from './components/TomatoTrayExpandedLayer';
 import type {AccessState} from './lib/access';
 import type {CommercialActivationResult} from './components/AuthPanel';
 import {clearStoredBackgroundImage, resolveBackgroundImage, storeBackgroundImage} from './lib/background-image';
@@ -19,6 +20,7 @@ import {
 } from './lib/study-record';
 import {
   appendTomatoHarvestEntry,
+  clearTrayFullTomatoes,
   clearSeededTomatoHarvestTestData,
   createTomatoHarvestEntry,
   loadTomatoHarvestState,
@@ -137,6 +139,7 @@ export default function App({
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(false);
   const [screenWakeLockRequested, setScreenWakeLockRequested] = useState(false);
   const [isQuickStatsOpen, setIsQuickStatsOpen] = useState(false);
+  const [isTrayExpanded, setIsTrayExpanded] = useState(false);
   const [studyRecord, setStudyRecord] = useState<StudyRecord>(() => loadAndSyncStudyRecord());
   const [scatterTomatoes, setScatterTomatoes] = useState<TomatoHarvestEntry[]>(() =>
     loadTomatoHarvestState().entries.filter((entry) => entry.location === 'SCATTER'),
@@ -1057,6 +1060,10 @@ export default function App({
     const next = clearSeededTomatoHarvestTestData();
     syncTomatoViews(next.entries);
   }, [syncTomatoViews]);
+  const handleClearTrayFullTomatoes = React.useCallback(() => {
+    const next = clearTrayFullTomatoes();
+    syncTomatoViews(next.entries);
+  }, [syncTomatoViews]);
   const handleResetAccumulatedTime = React.useCallback(() => {
     const reset = resetStudyRecord();
     setStudyRecord(reset);
@@ -1197,6 +1204,15 @@ export default function App({
                   {isTrayCollapsed ? quickStatsCopy.showTray : quickStatsCopy.hideTray}
                 </button>
               )}
+              {trayTomatoes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsTrayExpanded(true)}
+                  className="mt-2 w-full rounded-lg border border-white/14 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-white/80 transition hover:bg-white/[0.12]"
+                >
+                  {quickStatsCopy.viewAllStoredTomatoes}
+                </button>
+              )}
               {isDev && (
                 <>
                   <div className="mt-2 rounded-lg border border-white/12 bg-black/25 px-2 py-1.5 text-[10px] text-white/75">
@@ -1304,6 +1320,20 @@ export default function App({
 
       {/* Hidden Audio Element for Music */}
       <audio ref={audioRef} loop preload="auto" />
+      {isTrayExpanded && (
+        <TomatoTrayExpandedLayer
+          entries={trayTomatoes}
+          title={quickStatsCopy.storedTomatoesTitle}
+          closeLabel={quickStatsCopy.close}
+          countLabel={quickStatsCopy.trayStored}
+          totalDurationLabel={quickStatsCopy.storedTomatoesTotalDuration}
+          clearLabel={quickStatsCopy.clearTomatoResults}
+          clearConfirmLabel={quickStatsCopy.clearTomatoResultsConfirm}
+          onClose={() => setIsTrayExpanded(false)}
+          onDelete={handleTomatoDelete}
+          onClearAll={handleClearTrayFullTomatoes}
+        />
+      )}
     </div>
   );
 }

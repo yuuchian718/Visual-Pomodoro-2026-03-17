@@ -35,6 +35,12 @@ type MessageDictionary = {
     seedTestTomatoes: string;
     clearTestTomatoes: string;
     resetAccumulatedTime: string;
+    viewAllStoredTomatoes: string;
+    storedTomatoesTitle: string;
+    storedTomatoesTotalDuration: string;
+    clearTomatoResults: string;
+    clearTomatoResultsConfirm: string;
+    close: string;
   };
   timerControls: {
     resetTitle: string;
@@ -148,6 +154,12 @@ export const messages: Record<Locale, MessageDictionary> = {
       seedTestTomatoes: 'Seed 20 Test Tomatoes',
       clearTestTomatoes: 'Clear Test Tomatoes',
       resetAccumulatedTime: 'Reset Focus Totals',
+      viewAllStoredTomatoes: 'View All Stored Tomatoes',
+      storedTomatoesTitle: 'Stored Tomatoes',
+      storedTomatoesTotalDuration: 'Stored Focus Duration',
+      clearTomatoResults: 'Clear Tomato Results',
+      clearTomatoResultsConfirm: 'Tap Again to Clear',
+      close: 'Close',
     },
     timerControls: {
       resetTitle: 'Reset',
@@ -261,6 +273,12 @@ export const messages: Record<Locale, MessageDictionary> = {
       seedTestTomatoes: 'テスト番茄 20 件を投入',
       clearTestTomatoes: 'テスト番茄をクリア',
       resetAccumulatedTime: '累計時間をリセット',
+      viewAllStoredTomatoes: '収納済みトマトをすべて表示',
+      storedTomatoesTitle: '収納済みトマト',
+      storedTomatoesTotalDuration: '収納成果の合計時間',
+      clearTomatoResults: 'トマト成果をクリア',
+      clearTomatoResultsConfirm: 'もう一度押して確定',
+      close: '閉じる',
     },
     timerControls: {
       resetTitle: 'リセット',
@@ -374,6 +392,12 @@ export const messages: Record<Locale, MessageDictionary> = {
       seedTestTomatoes: '注入 20 个测试番茄',
       clearTestTomatoes: '清除面板数据',
       resetAccumulatedTime: '重置累计时间',
+      viewAllStoredTomatoes: '查看全部已收纳番茄',
+      storedTomatoesTitle: '已收纳番茄',
+      storedTomatoesTotalDuration: '已收纳成果总时长',
+      clearTomatoResults: '清空番茄成果',
+      clearTomatoResultsConfirm: '再次点击确认清空',
+      close: '关闭',
     },
     timerControls: {
       resetTitle: '重置',

@@ -332,57 +332,77 @@ export const moveScatterFullTomatoToTrayById = (id: string, nowMs = Date.now()):
   return saveTomatoHarvestState(next);
 };
 
+export const clearTrayFullTomatoes = (nowMs = Date.now()): TomatoHarvestState => {
+  // Deterministic scope: remove only stored full tomatoes.
+  const state = readRawState(nowMs);
+  const next: TomatoHarvestState = {
+    ...state,
+    entries: state.entries.filter((entry) => !(entry.location === 'TRAY' && entry.damageTier === 'FULL')),
+    updatedAt: nowMs,
+  };
+  return saveTomatoHarvestState(next);
+};
+
 const clampRatio = (value: number) => Math.max(0, Math.min(1, value));
 
 export const seedTomatoHarvestTestData = (nowMs = Date.now()): TomatoHarvestState => {
-  const baseRows = [
-    {targetMinutes: 5, damageTier: 'FULL', location: 'SCATTER' as TomatoLocation, ratio: 1},
-    {targetMinutes: 10, damageTier: 'LIGHT', location: 'SCATTER' as TomatoLocation, ratio: 0.84},
-    {targetMinutes: 15, damageTier: 'HALF', location: 'SCATTER' as TomatoLocation, ratio: 0.52},
-    {targetMinutes: 25, damageTier: 'HEAVY', location: 'SCATTER' as TomatoLocation, ratio: 0.24},
-    {targetMinutes: 30, damageTier: 'FULL', location: 'SCATTER' as TomatoLocation, ratio: 1},
-    {targetMinutes: 45, damageTier: 'LIGHT', location: 'SCATTER' as TomatoLocation, ratio: 0.77},
-    {targetMinutes: 50, damageTier: 'HALF', location: 'SCATTER' as TomatoLocation, ratio: 0.43},
-    {targetMinutes: 70, damageTier: 'HEAVY', location: 'SCATTER' as TomatoLocation, ratio: 0.18},
-    {targetMinutes: 80, damageTier: 'FULL', location: 'SCATTER' as TomatoLocation, ratio: 1},
-    {targetMinutes: 90, damageTier: 'LIGHT', location: 'SCATTER' as TomatoLocation, ratio: 0.71},
-    {targetMinutes: 120, damageTier: 'HALF', location: 'TRAY' as TomatoLocation, ratio: 0.51},
-    {targetMinutes: 180, damageTier: 'HEAVY', location: 'TRAY' as TomatoLocation, ratio: 0.22},
-    {targetMinutes: 240, damageTier: 'FULL', location: 'TRAY' as TomatoLocation, ratio: 1},
-    {targetMinutes: 25, damageTier: 'LIGHT', location: 'TRAY' as TomatoLocation, ratio: 0.9},
-    {targetMinutes: 45, damageTier: 'HALF', location: 'TRAY' as TomatoLocation, ratio: 0.58},
-    {targetMinutes: 60, damageTier: 'HEAVY', location: 'TRAY' as TomatoLocation, ratio: 0.14},
-    {targetMinutes: 12, damageTier: 'FULL', location: 'TRAY' as TomatoLocation, ratio: 1},
-    {targetMinutes: 35, damageTier: 'LIGHT', location: 'TRAY' as TomatoLocation, ratio: 0.68},
-    {targetMinutes: 55, damageTier: 'HALF', location: 'TRAY' as TomatoLocation, ratio: 0.49},
-    {targetMinutes: 110, damageTier: 'HEAVY', location: 'TRAY' as TomatoLocation, ratio: 0.27},
-  ];
+  const fullTargetPool = [5, 10, 15, 25, 30, 45, 50, 70, 80, 90, 120, 180, 240];
+  const incompleteTargetPool = [5, 10, 15, 25, 30, 45, 50, 70, 80, 90, 120, 180];
+  const incompleteTierCycle: TomatoDamageTier[] = ['LIGHT', 'HALF', 'HEAVY'];
+  const incompleteRatiosByTier: Record<Exclude<TomatoDamageTier, 'FULL'>, number[]> = {
+    LIGHT: [0.85, 0.78, 0.7],
+    HALF: [0.58, 0.5, 0.4],
+    HEAVY: [0.28, 0.2, 0.12],
+  };
 
-  const seededEntries: TomatoHarvestEntry[] = baseRows.map((row, index) => {
-    // Keep seeded rows within the same local day window so daily lazy cleanup
-    // does not unexpectedly remove incomplete rows during verification refresh.
-    const createdAt = nowMs - (20 - index) * 20 * 60 * 1000;
-    const targetSeconds = row.targetMinutes * 60;
-    const ratio = row.damageTier === 'FULL' ? 1 : clampRatio(row.ratio);
-    const actualSeconds =
-      row.damageTier === 'FULL' ? targetSeconds : Math.max(1, Math.min(targetSeconds - 1, Math.floor(targetSeconds * ratio)));
-    const completionRatio = clampRatio(actualSeconds / targetSeconds);
-    const actualMinutesDisplay = actualSeconds > 0 ? Math.max(1, Math.round(actualSeconds / 60)) : 0;
+  const seededEntries: TomatoHarvestEntry[] = [];
+  const totalRows = 80;
 
-    return {
-      id: `${TEST_TOMATO_ID_PREFIX}${createdAt}-${index}`,
-      targetMinutes: row.targetMinutes,
-      actualSeconds,
-      actualMinutesDisplay,
-      completionRatio,
-      sizeTier: resolveTomatoSizeTier(row.targetMinutes),
-      damageTier: row.damageTier as TomatoDamageTier,
-      location: row.location,
+  // 60 FULL tomatoes: 36 in scatter + 24 in tray
+  for (let i = 0; i < 60; i += 1) {
+    const targetMinutes = fullTargetPool[i % fullTargetPool.length]!;
+    const createdAt = nowMs - (totalRows - i) * 3 * 60 * 1000;
+    const targetSeconds = targetMinutes * 60;
+
+    seededEntries.push({
+      id: `${TEST_TOMATO_ID_PREFIX}${createdAt}-full-${i}`,
+      targetMinutes,
+      actualSeconds: targetSeconds,
+      actualMinutesDisplay: Math.max(1, Math.round(targetSeconds / 60)),
+      completionRatio: 1,
+      sizeTier: resolveTomatoSizeTier(targetMinutes),
+      damageTier: 'FULL',
+      location: i < 36 ? 'SCATTER' : 'TRAY',
       createdAt,
       sessionDateKey: dateKeyFromTime(createdAt),
       sessionMonthKey: monthKeyFromTime(nowMs),
-    };
-  });
+    });
+  }
+
+  // 20 incomplete tomatoes in scatter for stress-testing cleanup/rendering
+  for (let i = 0; i < 20; i += 1) {
+    const targetMinutes = incompleteTargetPool[i % incompleteTargetPool.length]!;
+    const damageTier = incompleteTierCycle[i % incompleteTierCycle.length]!;
+    const ratioPool = incompleteRatiosByTier[damageTier];
+    const ratio = clampRatio(ratioPool[i % ratioPool.length]!);
+    const createdAt = nowMs - (totalRows - (60 + i)) * 3 * 60 * 1000;
+    const targetSeconds = targetMinutes * 60;
+    const actualSeconds = Math.max(1, Math.min(targetSeconds - 1, Math.floor(targetSeconds * ratio)));
+
+    seededEntries.push({
+      id: `${TEST_TOMATO_ID_PREFIX}${createdAt}-incomplete-${i}`,
+      targetMinutes,
+      actualSeconds,
+      actualMinutesDisplay: Math.max(1, Math.round(actualSeconds / 60)),
+      completionRatio: clampRatio(actualSeconds / targetSeconds),
+      sizeTier: resolveTomatoSizeTier(targetMinutes),
+      damageTier,
+      location: 'SCATTER',
+      createdAt,
+      sessionDateKey: dateKeyFromTime(createdAt),
+      sessionMonthKey: monthKeyFromTime(nowMs),
+    });
+  }
 
   const next: TomatoHarvestState = {
     version: TOMATO_HARVEST_VERSION,
