@@ -1196,13 +1196,55 @@ export default function App({
       return;
     }
 
+    const clearActionHandlers = () => {
+      try {
+        mediaSession.setActionHandler('play', null);
+      } catch {
+        // Some environments may not support all action handlers.
+      }
+      try {
+        mediaSession.setActionHandler('pause', null);
+      } catch {
+        // Some environments may not support all action handlers.
+      }
+    };
+
     if (!isActive || !musicEnabled || !bgMusicUrl) {
       mediaSession.playbackState = 'none';
+      clearActionHandlers();
       return;
     }
 
     mediaSession.playbackState = isMusicPlaying ? 'playing' : 'paused';
-  }, [bgMusicUrl, isActive, isMusicPlaying, musicEnabled]);
+    try {
+      mediaSession.setActionHandler('play', () => {
+        bgMusicUserPausedRef.current = false;
+        void attemptPlayBackgroundMusic();
+      });
+    } catch {
+      // Ignore unsupported action handlers.
+    }
+    try {
+      mediaSession.setActionHandler('pause', () => {
+        bgMusicUserPausedRef.current = true;
+        pauseBackgroundMusicSilently();
+        setIsMusicPlaying(false);
+      });
+    } catch {
+      // Ignore unsupported action handlers.
+    }
+
+    return () => {
+      clearActionHandlers();
+    };
+  }, [
+    attemptPlayBackgroundMusic,
+    bgMusicUrl,
+    isActive,
+    isMusicPlaying,
+    musicEnabled,
+    pauseBackgroundMusicSilently,
+  ]);
 
   React.useEffect(() => {
     const video = bgVideoRef.current;
