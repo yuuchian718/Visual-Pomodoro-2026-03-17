@@ -173,6 +173,10 @@ export default function App({
   const bgVideoNoticeTimerRef = useRef<number | null>(null);
   const bgVideoResumeRetryTimerRef = useRef<number | null>(null);
   const bgVideoResumeInFlightRef = useRef(false);
+  const bgMusicUserPausedRef = useRef(false);
+  const bgVideoUserPausedRef = useRef(false);
+  const suppressMusicPauseIntentRef = useRef(false);
+  const suppressVideoPauseIntentRef = useRef(false);
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
@@ -378,20 +382,32 @@ export default function App({
     }
   }, [bgMusicUrl, logBgMusic, musicEnabled]);
 
+  const pauseBackgroundMusicSilently = React.useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    suppressMusicPauseIntentRef.current = true;
+    audio.pause();
+    window.setTimeout(() => {
+      suppressMusicPauseIntentRef.current = false;
+    }, 0);
+  }, []);
+
   React.useEffect(() => {
     const audio = audioRef.current;
     if (!audio) {
       return;
     }
 
-    if (isActive && bgMusicUrl && musicEnabled) {
+    if (isActive && bgMusicUrl && musicEnabled && !bgMusicUserPausedRef.current) {
       void attemptPlayBackgroundMusic();
       return;
     }
 
-    audio.pause();
+    pauseBackgroundMusicSilently();
     setIsMusicPlaying(false);
-  }, [attemptPlayBackgroundMusic, bgMusicUrl, isActive, musicEnabled]);
+  }, [attemptPlayBackgroundMusic, bgMusicUrl, isActive, musicEnabled, pauseBackgroundMusicSilently]);
 
   React.useEffect(() => {
     const audio = audioRef.current;
@@ -402,10 +418,14 @@ export default function App({
 
     const handlePlay = () => {
       setIsMusicPlaying(true);
+      bgMusicUserPausedRef.current = false;
       logBgMusic('event:play');
     };
     const handlePause = () => {
       setIsMusicPlaying(false);
+      if (!suppressMusicPauseIntentRef.current && isActive && musicEnabled && bgMusicUrl) {
+        bgMusicUserPausedRef.current = true;
+      }
       logBgMusic('event:pause');
     };
     const handleEnded = () => {
@@ -422,7 +442,7 @@ export default function App({
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [logBgMusic]);
+  }, [bgMusicUrl, isActive, logBgMusic, musicEnabled]);
 
   React.useEffect(() => {
     const audio = audioRef.current;
@@ -464,7 +484,7 @@ export default function App({
 
     const handleCanPlay = () => {
       logBgMusic('event:canplay');
-      if (!isActive || !musicEnabled || !bgMusicUrl) {
+      if (!isActive || !musicEnabled || !bgMusicUrl || bgMusicUserPausedRef.current) {
         return;
       }
 
@@ -475,7 +495,7 @@ export default function App({
 
     const handleLoadedData = () => {
       logBgMusic('event:loadeddata');
-      if (!isActive || !musicEnabled || !bgMusicUrl) {
+      if (!isActive || !musicEnabled || !bgMusicUrl || bgMusicUserPausedRef.current) {
         return;
       }
 
@@ -819,6 +839,7 @@ export default function App({
 
       const url = URL.createObjectURL(file);
       bgMusicUrlRef.current = url;
+      bgMusicUserPausedRef.current = false;
       setBgMusicUrl(url);
       setBgMusicName(file.name);
       logBgMusic('upload:music-selected', {
@@ -857,7 +878,7 @@ export default function App({
   const handleClearMusic = () => {
     const audio = audioRef.current;
     if (audio) {
-      audio.pause();
+      pauseBackgroundMusicSilently();
       audio.currentTime = 0;
     }
 
@@ -869,6 +890,7 @@ export default function App({
     setBgMusicUrl(null);
     setBgMusicName(null);
     setIsMusicPlaying(false);
+    bgMusicUserPausedRef.current = false;
   };
 
   const handleToggleMusic = () => {
@@ -879,6 +901,9 @@ export default function App({
     const nextEnabled = !musicEnabled;
     logBgMusic('music:toggle', { nextEnabled });
     setMusicEnabled(nextEnabled);
+    if (nextEnabled) {
+      bgMusicUserPausedRef.current = false;
+    }
   };
 
   const handleToggleTimer = () => {
@@ -887,6 +912,7 @@ export default function App({
     toggle();
 
     if (shouldBecomeActive && bgMusicUrl && musicEnabled) {
+      bgMusicUserPausedRef.current = false;
       void attemptPlayBackgroundMusic();
     }
   };
@@ -925,6 +951,7 @@ export default function App({
 
     const nextUrl = URL.createObjectURL(file);
     bgVideoUrlRef.current = nextUrl;
+    bgVideoUserPausedRef.current = false;
     setBgVideoUrl(nextUrl);
     setBgVideoName(file.name);
   };
@@ -938,6 +965,7 @@ export default function App({
 
     setBgVideoUrl(null);
     setBgVideoName(null);
+    bgVideoUserPausedRef.current = false;
   };
 
   React.useEffect(() => {
@@ -990,6 +1018,9 @@ export default function App({
       if (!video || !bgVideoUrl) {
         return;
       }
+      if (bgVideoUserPausedRef.current) {
+        return;
+      }
       if (!(video.paused || video.ended)) {
         return;
       }
@@ -1035,16 +1066,69 @@ export default function App({
       return;
     }
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void attemptResumeBackgroundVideo(true);
+    const video = bgVideoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const handleVideoPlay = () => {
+      bgVideoUserPausedRef.current = false;
+    };
+    const handleVideoPause = () => {
+      if (!suppressVideoPauseIntentRef.current) {
+        bgVideoUserPausedRef.current = true;
       }
     };
+
+    video.addEventListener('play', handleVideoPlay);
+    video.addEventListener('pause', handleVideoPause);
+
+    return () => {
+      video.removeEventListener('play', handleVideoPlay);
+      video.removeEventListener('pause', handleVideoPause);
+    };
+  }, [bgVideoUrl]);
+
+  const attemptResumeMediaAfterForeground = React.useCallback(async () => {
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
+
+    if (bgMusicUrl && musicEnabled && isActive && !bgMusicUserPausedRef.current) {
+      const audio = audioRef.current;
+      if (audio && audio.paused) {
+        void attemptPlayBackgroundMusic();
+      }
+    }
+
+    void attemptResumeBackgroundVideo(true);
+  }, [attemptPlayBackgroundMusic, attemptResumeBackgroundVideo, bgMusicUrl, isActive, musicEnabled]);
+
+  React.useEffect(() => {
+    if (!bgVideoUrl) {
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      const video = bgVideoRef.current;
+      if (!video) {
+        return;
+      }
+      if (document.visibilityState === 'hidden') {
+        suppressVideoPauseIntentRef.current = true;
+        video.pause();
+        window.setTimeout(() => {
+          suppressVideoPauseIntentRef.current = false;
+        }, 0);
+        return;
+      }
+      void attemptResumeMediaAfterForeground();
+    };
     const handlePageShow = () => {
-      void attemptResumeBackgroundVideo(true);
+      void attemptResumeMediaAfterForeground();
     };
     const handleFocus = () => {
-      void attemptResumeBackgroundVideo(true);
+      void attemptResumeMediaAfterForeground();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -1056,7 +1140,7 @@ export default function App({
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [attemptResumeBackgroundVideo, bgVideoUrl]);
+  }, [attemptResumeMediaAfterForeground, bgVideoUrl]);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;
