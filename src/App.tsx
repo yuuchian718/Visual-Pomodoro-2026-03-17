@@ -171,6 +171,8 @@ export default function App({
   const trayLayerRef = useRef<HTMLDivElement | null>(null);
   const trayGhostTimerRef = useRef<number | null>(null);
   const bgVideoNoticeTimerRef = useRef<number | null>(null);
+  const bgVideoResumeRetryTimerRef = useRef<number | null>(null);
+  const bgVideoResumeInFlightRef = useRef(false);
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
@@ -217,6 +219,10 @@ export default function App({
       if (bgVideoNoticeTimerRef.current !== null) {
         window.clearTimeout(bgVideoNoticeTimerRef.current);
         bgVideoNoticeTimerRef.current = null;
+      }
+      if (bgVideoResumeRetryTimerRef.current !== null) {
+        window.clearTimeout(bgVideoResumeRetryTimerRef.current);
+        bgVideoResumeRetryTimerRef.current = null;
       }
     };
   }, []);
@@ -977,6 +983,88 @@ export default function App({
       video.removeEventListener('canplay', retryIfPaused);
     };
   }, [bgVideoUrl, settingsCopy.videoBackgroundPlayFailed, showBgVideoNotice]);
+
+  const attemptResumeBackgroundVideo = React.useCallback(
+    async (allowRetry: boolean) => {
+      const video = bgVideoRef.current;
+      if (!video || !bgVideoUrl) {
+        return;
+      }
+      if (!(video.paused || video.ended)) {
+        return;
+      }
+      if (bgVideoResumeInFlightRef.current) {
+        return;
+      }
+
+      bgVideoResumeInFlightRef.current = true;
+      try {
+        try {
+          await video.play();
+          return;
+        } catch {
+          // Fall through to reload+replay when media is not ready.
+        }
+
+        if (video.readyState < 2) {
+          video.load();
+        }
+
+        try {
+          await video.play();
+          return;
+        } catch {
+          if (allowRetry && bgVideoResumeRetryTimerRef.current === null) {
+            bgVideoResumeRetryTimerRef.current = window.setTimeout(() => {
+              bgVideoResumeRetryTimerRef.current = null;
+              void attemptResumeBackgroundVideo(false);
+            }, 320);
+            return;
+          }
+          showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
+        }
+      } finally {
+        bgVideoResumeInFlightRef.current = false;
+      }
+    },
+    [bgVideoUrl, settingsCopy.videoBackgroundPlayFailed, showBgVideoNotice],
+  );
+
+  React.useEffect(() => {
+    if (!bgVideoUrl) {
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void attemptResumeBackgroundVideo(true);
+      }
+    };
+    const handlePageShow = () => {
+      void attemptResumeBackgroundVideo(true);
+    };
+    const handleFocus = () => {
+      void attemptResumeBackgroundVideo(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [attemptResumeBackgroundVideo, bgVideoUrl]);
+
+  React.useEffect(() => {
+    bgVideoResumeInFlightRef.current = false;
+    if (bgVideoResumeRetryTimerRef.current !== null) {
+      window.clearTimeout(bgVideoResumeRetryTimerRef.current);
+      bgVideoResumeRetryTimerRef.current = null;
+    }
+  }, [bgVideoUrl]);
 
   const handleTickTypeChange = (type: TickType) => {
     setTickType(type);
