@@ -176,7 +176,7 @@ export default function App({
   const bgMusicUserPausedRef = useRef(false);
   const bgVideoUserPausedRef = useRef(false);
   const suppressMusicPauseIntentRef = useRef(false);
-  const suppressVideoPauseIntentRef = useRef(false);
+  const bgVideoLifecyclePausePendingRef = useRef(false);
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
@@ -1018,6 +1018,9 @@ export default function App({
       if (!video || !bgVideoUrl) {
         return;
       }
+      if (!isActive) {
+        return;
+      }
       if (bgVideoUserPausedRef.current) {
         return;
       }
@@ -1058,7 +1061,7 @@ export default function App({
         bgVideoResumeInFlightRef.current = false;
       }
     },
-    [bgVideoUrl, settingsCopy.videoBackgroundPlayFailed, showBgVideoNotice],
+    [bgVideoUrl, isActive, settingsCopy.videoBackgroundPlayFailed, showBgVideoNotice],
   );
 
   React.useEffect(() => {
@@ -1075,7 +1078,11 @@ export default function App({
       bgVideoUserPausedRef.current = false;
     };
     const handleVideoPause = () => {
-      if (!suppressVideoPauseIntentRef.current) {
+      if (bgVideoLifecyclePausePendingRef.current) {
+        bgVideoLifecyclePausePendingRef.current = false;
+        return;
+      }
+      if (isActive) {
         bgVideoUserPausedRef.current = true;
       }
     };
@@ -1087,7 +1094,7 @@ export default function App({
       video.removeEventListener('play', handleVideoPlay);
       video.removeEventListener('pause', handleVideoPause);
     };
-  }, [bgVideoUrl]);
+  }, [bgVideoUrl, isActive]);
 
   const attemptResumeMediaAfterForeground = React.useCallback(async () => {
     if (document.visibilityState !== 'visible') {
@@ -1105,21 +1112,14 @@ export default function App({
   }, [attemptPlayBackgroundMusic, attemptResumeBackgroundVideo, bgMusicUrl, isActive, musicEnabled]);
 
   React.useEffect(() => {
-    if (!bgVideoUrl) {
-      return;
-    }
-
     const handleVisibilityChange = () => {
       const video = bgVideoRef.current;
       if (!video) {
         return;
       }
       if (document.visibilityState === 'hidden') {
-        suppressVideoPauseIntentRef.current = true;
+        bgVideoLifecyclePausePendingRef.current = true;
         video.pause();
-        window.setTimeout(() => {
-          suppressVideoPauseIntentRef.current = false;
-        }, 0);
         return;
       }
       void attemptResumeMediaAfterForeground();
@@ -1140,15 +1140,27 @@ export default function App({
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [attemptResumeMediaAfterForeground, bgVideoUrl]);
+  }, [attemptResumeMediaAfterForeground]);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;
+    bgVideoLifecyclePausePendingRef.current = false;
     if (bgVideoResumeRetryTimerRef.current !== null) {
       window.clearTimeout(bgVideoResumeRetryTimerRef.current);
       bgVideoResumeRetryTimerRef.current = null;
     }
   }, [bgVideoUrl]);
+
+  React.useEffect(() => {
+    const video = bgVideoRef.current;
+    if (!video) {
+      return;
+    }
+    if (!isActive && !video.paused) {
+      bgVideoLifecyclePausePendingRef.current = true;
+      video.pause();
+    }
+  }, [isActive, bgVideoUrl]);
 
   const handleTickTypeChange = (type: TickType) => {
     setTickType(type);
