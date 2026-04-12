@@ -1121,21 +1121,6 @@ export default function App({
     };
   }, [bgVideoUrl, isActive]);
 
-  const attemptResumeMediaAfterForeground = React.useCallback(async () => {
-    if (document.visibilityState !== 'visible') {
-      return;
-    }
-
-    if (bgMusicUrl && musicEnabled && isActive && !bgMusicUserPausedRef.current) {
-      const audio = audioRef.current;
-      if (audio && audio.paused) {
-        void attemptPlayBackgroundMusic();
-      }
-    }
-
-    void attemptResumeBackgroundVideo(true);
-  }, [attemptPlayBackgroundMusic, attemptResumeBackgroundVideo, bgMusicUrl, isActive, musicEnabled]);
-
   React.useEffect(() => {
     if (!isActive || !bgVideoUrl) {
       return;
@@ -1150,36 +1135,54 @@ export default function App({
     void attemptResumeBackgroundVideo(true);
   }, [attemptResumeBackgroundVideo, bgVideoUrl, isActive]);
 
+  const deactivateSystemMediaSession = React.useCallback(() => {
+    const mediaSession = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    if (!mediaSession) {
+      return;
+    }
+    mediaSession.playbackState = 'none';
+    mediaSession.metadata = null;
+    const actions: MediaSessionAction[] = [
+      'play',
+      'pause',
+      'seekbackward',
+      'seekforward',
+      'seekto',
+      'previoustrack',
+      'nexttrack',
+    ];
+    for (const action of actions) {
+      try {
+        mediaSession.setActionHandler(action, null);
+      } catch {
+        // Ignore unsupported handlers in this environment.
+      }
+    }
+  }, []);
+
   React.useEffect(() => {
     const handleVisibilityChange = () => {
+      const audio = audioRef.current;
       const video = bgVideoRef.current;
-      if (!video) {
-        return;
-      }
       if (document.visibilityState === 'hidden') {
-        bgVideoLifecyclePausePendingRef.current = true;
-        video.pause();
-        return;
+        if (audio && !audio.paused) {
+          pauseBackgroundMusicSilently();
+          setIsMusicPlaying(false);
+        }
+        if (video && !video.paused) {
+          bgVideoLifecyclePausePendingRef.current = true;
+          video.pause();
+        }
+        deactivateSystemMediaSession();
       }
-      void attemptResumeMediaAfterForeground();
-    };
-    const handlePageShow = () => {
-      void attemptResumeMediaAfterForeground();
-    };
-    const handleFocus = () => {
-      void attemptResumeMediaAfterForeground();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('focus', handleFocus);
     };
-  }, [attemptResumeMediaAfterForeground]);
+  }, [deactivateSystemMediaSession, pauseBackgroundMusicSilently]);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;
@@ -1196,21 +1199,29 @@ export default function App({
       return;
     }
 
+    const isVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
     const clearActionHandlers = () => {
-      try {
-        mediaSession.setActionHandler('play', null);
-      } catch {
-        // Some environments may not support all action handlers.
-      }
-      try {
-        mediaSession.setActionHandler('pause', null);
-      } catch {
-        // Some environments may not support all action handlers.
+      const actions: MediaSessionAction[] = [
+        'play',
+        'pause',
+        'seekbackward',
+        'seekforward',
+        'seekto',
+        'previoustrack',
+        'nexttrack',
+      ];
+      for (const action of actions) {
+        try {
+          mediaSession.setActionHandler(action, null);
+        } catch {
+          // Some environments may not support all action handlers.
+        }
       }
     };
 
-    if (!isActive || !musicEnabled || !bgMusicUrl) {
+    if (!isVisible || !isActive || !musicEnabled || !bgMusicUrl) {
       mediaSession.playbackState = 'none';
+      mediaSession.metadata = null;
       clearActionHandlers();
       return;
     }
