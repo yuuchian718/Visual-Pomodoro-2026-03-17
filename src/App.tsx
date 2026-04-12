@@ -1031,32 +1031,57 @@ export default function App({
         return;
       }
 
+      const checkVideoAdvancing = async () => {
+        const t0 = video.currentTime;
+        await new Promise((resolve) => window.setTimeout(resolve, 360));
+        return !video.paused && video.currentTime > t0 + 0.03;
+      };
+
       bgVideoResumeInFlightRef.current = true;
       try {
         try {
           await video.play();
-          return;
         } catch {
           // Fall through to conditional reload+replay when media is not ready.
         }
 
-        if (video.readyState < 2) {
+        if (video.paused && video.readyState < 2) {
           video.load();
         }
 
         try {
           await video.play();
-          return;
         } catch {
-          if (allowRetry && bgVideoResumeRetryTimerRef.current === null) {
-            bgVideoResumeRetryTimerRef.current = window.setTimeout(() => {
-              bgVideoResumeRetryTimerRef.current = null;
-              void attemptResumeBackgroundVideo(false);
-            }, 320);
+          // Keep going to unified retry handling below.
+        }
+
+        if (!video.paused) {
+          const advanced = await checkVideoAdvancing();
+          if (advanced) {
             return;
           }
-          showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
+
+          // play() may resolve on mobile while frames stay frozen; force one hard restart.
+          video.load();
+          try {
+            await video.play();
+            const advancedAfterReload = await checkVideoAdvancing();
+            if (advancedAfterReload) {
+              return;
+            }
+          } catch {
+            // Keep going to unified retry handling below.
+          }
         }
+
+        if (allowRetry && bgVideoResumeRetryTimerRef.current === null) {
+          bgVideoResumeRetryTimerRef.current = window.setTimeout(() => {
+            bgVideoResumeRetryTimerRef.current = null;
+            void attemptResumeBackgroundVideo(false);
+          }, 320);
+          return;
+        }
+        showBgVideoNotice(settingsCopy.videoBackgroundPlayFailed);
       } finally {
         bgVideoResumeInFlightRef.current = false;
       }
@@ -1353,7 +1378,7 @@ export default function App({
         className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
         style={{ backgroundImage: `url(${bgImage})` }}
       />
-      {bgVideoUrl && (
+      {bgVideoUrl && isActive && (
         <video
           ref={bgVideoRef}
           key={bgVideoUrl}
