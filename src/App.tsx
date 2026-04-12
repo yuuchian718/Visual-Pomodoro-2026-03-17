@@ -1037,7 +1037,7 @@ export default function App({
           await video.play();
           return;
         } catch {
-          // Fall through to reload+replay when media is not ready.
+          // Fall through to conditional reload+replay when media is not ready.
         }
 
         if (video.readyState < 2) {
@@ -1112,6 +1112,20 @@ export default function App({
   }, [attemptPlayBackgroundMusic, attemptResumeBackgroundVideo, bgMusicUrl, isActive, musicEnabled]);
 
   React.useEffect(() => {
+    if (!isActive || !bgVideoUrl) {
+      return;
+    }
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
+    const video = bgVideoRef.current;
+    if (!video || !video.paused) {
+      return;
+    }
+    void attemptResumeBackgroundVideo(true);
+  }, [attemptResumeBackgroundVideo, bgVideoUrl, isActive]);
+
+  React.useEffect(() => {
     const handleVisibilityChange = () => {
       const video = bgVideoRef.current;
       if (!video) {
@@ -1150,6 +1164,20 @@ export default function App({
       bgVideoResumeRetryTimerRef.current = null;
     }
   }, [bgVideoUrl]);
+
+  React.useEffect(() => {
+    const mediaSession = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    if (!mediaSession) {
+      return;
+    }
+
+    if (!isActive || !musicEnabled || !bgMusicUrl) {
+      mediaSession.playbackState = 'none';
+      return;
+    }
+
+    mediaSession.playbackState = isMusicPlaying ? 'playing' : 'paused';
+  }, [bgMusicUrl, isActive, isMusicPlaying, musicEnabled]);
 
   React.useEffect(() => {
     const video = bgVideoRef.current;
