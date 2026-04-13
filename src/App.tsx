@@ -420,6 +420,12 @@ export default function App({
       setIsMusicPlaying(true);
       bgMusicUserPausedRef.current = false;
       logBgMusic('event:play');
+      console.info('[bg-audio]', 'play', {
+        at: new Date().toISOString(),
+        visibility: document.visibilityState,
+        isActive,
+        isMusicPlaying: true,
+      });
     };
     const handlePause = () => {
       setIsMusicPlaying(false);
@@ -427,6 +433,13 @@ export default function App({
         bgMusicUserPausedRef.current = true;
       }
       logBgMusic('event:pause');
+      console.info('[bg-audio]', 'pause', {
+        at: new Date().toISOString(),
+        visibility: document.visibilityState,
+        isActive,
+        isMusicPlaying: false,
+        suppressMusicPauseIntent: suppressMusicPauseIntentRef.current,
+      });
     };
     const handleEnded = () => {
       setIsMusicPlaying(false);
@@ -544,30 +557,98 @@ export default function App({
 
   React.useEffect(() => {
     let rafId: number | null = null;
-    const triggerViewportSync = () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      rafId = window.requestAnimationFrame(() => {
-        setViewportSyncTick((prev) => (prev + 1) % 1000000);
+    let delayedSyncId: number | null = null;
+
+    const logViewportSync = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange', phase: 'immediate' | 'delayed') => {
+      const viewport = window.visualViewport;
+      const orientationType =
+        typeof window.screen?.orientation?.type === 'string'
+          ? window.screen.orientation.type
+          : null;
+
+      console.info('[viewport-sync]', {
+        at: new Date().toISOString(),
+        source,
+        phase,
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        visualViewportWidth: viewport ? Number(viewport.width.toFixed(2)) : null,
+        visualViewportHeight: viewport ? Number(viewport.height.toFixed(2)) : null,
+        visualViewportScale: viewport ? Number(viewport.scale.toFixed(3)) : null,
+        orientationType,
+        visibility: document.visibilityState,
       });
     };
 
+    const triggerSyncTick = () => {
+      setViewportSyncTick((prev) => (prev + 1) % 1000000);
+    };
+
+    const resyncViewport = (
+      source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange',
+      includeDelayedSync = true,
+    ) => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      if (delayedSyncId !== null) {
+        window.clearTimeout(delayedSyncId);
+      }
+
+      rafId = window.requestAnimationFrame(() => {
+        logViewportSync(source, 'immediate');
+        triggerSyncTick();
+        rafId = null;
+      });
+
+      if (includeDelayedSync) {
+        delayedSyncId = window.setTimeout(() => {
+          logViewportSync(source, 'delayed');
+          triggerSyncTick();
+          delayedSyncId = null;
+        }, 180);
+      }
+    };
+
+    const handleWindowResize = () => {
+      resyncViewport('resize');
+    };
+
+    const handleVisualViewportResize = () => {
+      resyncViewport('visualViewport.resize');
+    };
+
+    const handleOrientationChange = () => {
+      resyncViewport('orientationchange');
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        resyncViewport('visibilitychange');
+      }
+    };
+
     const viewport = window.visualViewport;
+    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     if (viewport) {
-      viewport.addEventListener('resize', triggerViewportSync);
-    } else {
-      window.addEventListener('resize', triggerViewportSync);
+      viewport.addEventListener('resize', handleVisualViewportResize);
     }
 
     return () => {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
+      if (delayedSyncId !== null) {
+        window.clearTimeout(delayedSyncId);
+      }
+      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (viewport) {
-        viewport.removeEventListener('resize', triggerViewportSync);
-      } else {
-        window.removeEventListener('resize', triggerViewportSync);
+        viewport.removeEventListener('resize', handleVisualViewportResize);
       }
     };
   }, []);
@@ -1150,6 +1231,11 @@ export default function App({
 
   React.useEffect(() => {
     const handleVisibilityChange = () => {
+      console.info('[media-visibility]', document.visibilityState, {
+        at: new Date().toISOString(),
+        isActive,
+        isMusicPlaying,
+      });
       const video = bgVideoRef.current;
       if (document.visibilityState === 'hidden') {
         if (video && !video.paused) {
@@ -1164,7 +1250,7 @@ export default function App({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [isActive, isMusicPlaying]);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;

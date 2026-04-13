@@ -1,10 +1,52 @@
 export type TickType = 'classic' | 'wood' | 'digital';
 export type AlarmType = 'classic' | 'pulse' | 'chime';
 
+declare global {
+  interface Window {
+    __vpBgMusicDebug?: {
+      getSnapshot: () => {
+        src: string;
+        paused: boolean;
+        muted: boolean;
+        volume: number;
+        currentTime: number;
+        readyState: number;
+        networkState: number;
+        error: string | null;
+      } | null;
+      getState: () => {
+        isActive: boolean;
+        musicEnabled: boolean;
+        bgMusicUrl: string | null;
+        bgMusicName: string | null;
+        isMusicPlaying: boolean;
+      };
+    };
+  }
+}
+
 export class SoundManager {
   private audioCtx: AudioContext | null = null;
   private tickType: TickType = 'classic';
   private alarmType: AlarmType = 'classic';
+
+  private logSfx(label: string) {
+    const debug = typeof window !== 'undefined' ? window.__vpBgMusicDebug : undefined;
+    const state = debug?.getState?.();
+    const visibility = typeof document !== 'undefined' ? document.visibilityState : 'unknown';
+    const stackLine = new Error()
+      .stack?.split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.includes('useTimer') || line.includes('App'));
+
+    console.info('[sfx]', label, {
+      at: new Date().toISOString(),
+      visibility,
+      isActive: state?.isActive ?? null,
+      isMusicPlaying: state?.isMusicPlaying ?? null,
+      source: stackLine ?? 'unknown',
+    });
+  }
 
   private init() {
     if (!this.audioCtx) {
@@ -51,6 +93,7 @@ export class SoundManager {
   }
 
   playTick() {
+    this.logSfx('playTick');
     this.withReadyContext((ctx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();

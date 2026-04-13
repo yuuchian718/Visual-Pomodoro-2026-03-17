@@ -16,6 +16,18 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
     }
   }, []);
 
+  const canPlaySfx = useCallback(() => {
+    if (!soundEnabled) {
+      return false;
+    }
+
+    if (typeof document === 'undefined') {
+      return true;
+    }
+
+    return document.visibilityState === 'visible';
+  }, [soundEnabled]);
+
   const syncTimeLeft = useCallback(() => {
     if (targetEndAtRef.current === null) {
       return;
@@ -23,15 +35,16 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
 
     setTimeLeft(prev => {
       const next = Math.max(0, Math.ceil((targetEndAtRef.current! - Date.now()) / 1000));
+      const shouldPlaySfx = canPlaySfx();
 
-      if (next > 0 && next < prev && soundEnabled) {
+      if (next > 0 && next < prev && shouldPlaySfx) {
         if (next <= 10) {
           soundManager.playAlarm(next);
         } else {
           soundManager.playTick();
         }
       } else if (next === 0 && prev !== 0) {
-        if (soundEnabled) {
+        if (shouldPlaySfx) {
           soundManager.playFinish();
         }
         targetEndAtRef.current = null;
@@ -42,7 +55,7 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
 
       return next;
     });
-  }, [clearTimer, soundEnabled]);
+  }, [canPlaySfx, clearTimer]);
 
   const settlePausedTimeLeft = useCallback(() => {
     if (targetEndAtRef.current === null) {
@@ -53,12 +66,12 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
     setTimeLeft(next);
 
     if (next === 0) {
-      if (soundEnabled) {
+      if (canPlaySfx()) {
         soundManager.playFinish();
       }
       setIsFinished(true);
     }
-  }, [soundEnabled]);
+  }, [canPlaySfx]);
 
   const reset = useCallback((minutes: number) => {
     setIsActive(false);
