@@ -92,6 +92,17 @@ type PendingTrayStore = {
   sizePx: number;
 };
 
+type ViewportOrientationBucket = 'portrait' | 'landscape';
+
+type ViewportBaseline = {
+  orientation: ViewportOrientationBucket;
+  innerWidth: number;
+  innerHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  viewportScale: number;
+};
+
 declare global {
   interface Window {
     __vpBgMusicDebug?: {
@@ -158,6 +169,7 @@ export default function App({
   const [trayGhost, setTrayGhost] = useState<TomatoTrayGhost | null>(null);
   const [pendingTrayStore, setPendingTrayStore] = useState<PendingTrayStore | null>(null);
   const [, setViewportSyncTick] = useState(0);
+  const [viewportRecoveryKey, setViewportRecoveryKey] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const musicInputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +189,8 @@ export default function App({
   const bgVideoUserPausedRef = useRef(false);
   const suppressMusicPauseIntentRef = useRef(false);
   const bgVideoLifecyclePausePendingRef = useRef(false);
+  const viewportRecoverySignatureRef = useRef<string | null>(null);
+  const viewportBaselinesRef = useRef<Partial<Record<ViewportOrientationBucket, ViewportBaseline>>>({});
   const studyPendingStartAtRef = useRef<number | null>(null);
   const studyEffectiveStartAtRef = useRef<number | null>(null);
   const studyGateTimerRef = useRef<number | null>(null);
@@ -559,25 +573,162 @@ export default function App({
     let rafId: number | null = null;
     let delayedSyncId: number | null = null;
 
-    const logViewportSync = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange', phase: 'immediate' | 'delayed') => {
+    const getOrientationBucket = (): ViewportOrientationBucket => {
       const viewport = window.visualViewport;
-      const orientationType =
-        typeof window.screen?.orientation?.type === 'string'
-          ? window.screen.orientation.type
-          : null;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = viewport?.height ?? window.innerHeight;
+      return width >= height ? 'landscape' : 'portrait';
+    };
 
+    const getViewportSnapshot = () => {
+      const viewport = window.visualViewport;
+      return {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        viewportWidth: viewport ? Number(viewport.width.toFixed(2)) : null,
+        viewportHeight: viewport ? Number(viewport.height.toFixed(2)) : null,
+        viewportScale: viewport ? Number(viewport.scale.toFixed(3)) : null,
+        orientationType:
+          typeof window.screen?.orientation?.type === 'string'
+            ? window.screen.orientation.type
+            : null,
+        orientationBucket: getOrientationBucket(),
+        visibility: document.visibilityState,
+      };
+    };
+
+    const logViewportSync = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange', phase: 'immediate' | 'delayed') => {
       console.info('[viewport-sync]', {
         at: new Date().toISOString(),
         source,
         phase,
+        ...getViewportSnapshot(),
+      });
+    };
+
+    const maybeRecordViewportBaseline = (
+      source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange',
+    ) => {
+      const viewport = window.visualViewport;
+      if (!viewport) {
+        return;
+      }
+
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      if (Math.abs(viewport.scale - 1) > 0.02) {
+        return;
+      }
+
+      const orientation = getOrientationBucket();
+      const nextBaseline: ViewportBaseline = {
+        orientation,
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
-        visualViewportWidth: viewport ? Number(viewport.width.toFixed(2)) : null,
-        visualViewportHeight: viewport ? Number(viewport.height.toFixed(2)) : null,
-        visualViewportScale: viewport ? Number(viewport.scale.toFixed(3)) : null,
+        viewportWidth: viewport.width,
+        viewportHeight: viewport.height,
+        viewportScale: viewport.scale,
+      };
+
+      const previousBaseline = viewportBaselinesRef.current[orientation];
+      const widthDelta = previousBaseline
+        ? Math.abs(previousBaseline.viewportWidth - nextBaseline.viewportWidth)
+        : 0;
+      const heightDelta = previousBaseline
+        ? Math.abs(previousBaseline.viewportHeight - nextBaseline.viewportHeight)
+        : 0;
+
+      if (
+        !previousBaseline ||
+        widthDelta > 24 ||
+        heightDelta > 24 ||
+        source === 'orientationchange' ||
+        source === 'visibilitychange'
+      ) {
+        viewportBaselinesRef.current[orientation] = nextBaseline;
+        console.info('[viewport-baseline]', {
+          at: new Date().toISOString(),
+          source,
+          orientation,
+          innerWidth: Math.round(nextBaseline.innerWidth),
+          innerHeight: Math.round(nextBaseline.innerHeight),
+          viewportWidth: Math.round(nextBaseline.viewportWidth),
+          viewportHeight: Math.round(nextBaseline.viewportHeight),
+          viewportScale: Number(nextBaseline.viewportScale.toFixed(3)),
+        });
+      }
+    };
+
+    const attemptViewportRecovery = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange') => {
+      const viewport = window.visualViewport;
+      if (!viewport) {
+        return;
+      }
+
+      const orientation = getOrientationBucket();
+      const baseline = viewportBaselinesRef.current[orientation];
+      if (!baseline) {
+        viewportRecoverySignatureRef.current = null;
+        return;
+      }
+
+      if (source !== 'orientationchange' && source !== 'visibilitychange') {
+        return;
+      }
+
+      const scaleDelta = Math.abs(viewport.scale - baseline.viewportScale);
+      const widthDeltaRatio = Math.abs(viewport.width - baseline.viewportWidth) / Math.max(1, baseline.viewportWidth);
+      const heightDeltaRatio = Math.abs(viewport.height - baseline.viewportHeight) / Math.max(1, baseline.viewportHeight);
+      const hasMeaningfulDeviation =
+        scaleDelta > 0.03 ||
+        widthDeltaRatio > 0.12 ||
+        heightDeltaRatio > 0.12;
+
+      if (!hasMeaningfulDeviation) {
+        viewportRecoverySignatureRef.current = null;
+        return;
+      }
+
+      const orientationType =
+        typeof window.screen?.orientation?.type === 'string'
+          ? window.screen.orientation.type
+          : 'unknown';
+      const recoverySignature = [
+        source,
+        orientation,
         orientationType,
-        visibility: document.visibilityState,
+        Math.round(window.innerWidth),
+        Math.round(window.innerHeight),
+        Math.round(viewport.width),
+        Math.round(viewport.height),
+        viewport.scale.toFixed(2),
+      ].join(':');
+
+      if (viewportRecoverySignatureRef.current === recoverySignature) {
+        return;
+      }
+
+      viewportRecoverySignatureRef.current = recoverySignature;
+      console.info('[viewport-recovery]', {
+        at: new Date().toISOString(),
+        source,
+        orientation,
+        baselineInnerWidth: Math.round(baseline.innerWidth),
+        baselineInnerHeight: Math.round(baseline.innerHeight),
+        baselineViewportWidth: Math.round(baseline.viewportWidth),
+        baselineViewportHeight: Math.round(baseline.viewportHeight),
+        baselineViewportScale: Number(baseline.viewportScale.toFixed(3)),
+        currentViewportWidth: Math.round(viewport.width),
+        currentViewportHeight: Math.round(viewport.height),
+        currentViewportScale: Number(viewport.scale.toFixed(3)),
+        scaleDelta: Number(scaleDelta.toFixed(3)),
+        widthDeltaRatio: Number(widthDeltaRatio.toFixed(3)),
+        heightDeltaRatio: Number(heightDeltaRatio.toFixed(3)),
+        recoverySignature,
       });
+      setViewportRecoveryKey((prev) => prev + 1);
     };
 
     const triggerSyncTick = () => {
@@ -605,6 +756,8 @@ export default function App({
         delayedSyncId = window.setTimeout(() => {
           logViewportSync(source, 'delayed');
           triggerSyncTick();
+          maybeRecordViewportBaseline(source);
+          attemptViewportRecovery(source);
           delayedSyncId = null;
         }, 180);
       }
@@ -1286,7 +1439,7 @@ export default function App({
       }
     };
 
-    if (!isActive || !musicEnabled || !bgMusicUrl) {
+    if (!musicEnabled || !bgMusicUrl) {
       mediaSession.playbackState = 'none';
       mediaSession.metadata = null;
       clearActionHandlers();
@@ -1318,7 +1471,6 @@ export default function App({
   }, [
     attemptPlayBackgroundMusic,
     bgMusicUrl,
-    isActive,
     isMusicPlaying,
     musicEnabled,
     pauseBackgroundMusicSilently,
@@ -1519,7 +1671,10 @@ export default function App({
       )}
 
       {/* Main Content */}
-      <main className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 max-md:landscape:py-4 px-8 max-md:landscape:px-4 overflow-y-auto">
+      <main
+        key={viewportRecoveryKey}
+        className="relative z-10 flex h-full w-full flex-col items-center justify-between py-12 max-md:landscape:py-4 px-8 max-md:landscape:px-4 overflow-y-auto"
+      >
         <TomatoScatterLayer
           entries={scatterTomatoes}
           onPositionCommit={handleTomatoPositionCommit}
