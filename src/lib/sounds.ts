@@ -16,11 +16,16 @@ export class SoundManager {
     this.init();
     if (!this.audioCtx) return;
 
-    if (this.audioCtx.state === 'suspended') {
-      void this.audioCtx.resume()
+    const ctx = this.audioCtx;
+
+    if (ctx.state !== 'running') {
+      void ctx.resume()
         .then(() => {
-          if (!this.audioCtx) return;
-          run(this.audioCtx);
+          if (!this.audioCtx || this.audioCtx !== ctx) return;
+          if (ctx.state !== 'running') {
+            return;
+          }
+          run(ctx);
         })
         .catch(() => {
           // Keep silent on resume failures; caller side remains stable.
@@ -28,7 +33,13 @@ export class SoundManager {
       return;
     }
 
-    run(this.audioCtx);
+    run(ctx);
+  }
+
+  prepare() {
+    this.withReadyContext(() => {
+      // Warm the audio context without producing any sound.
+    });
   }
 
   setTickType(type: TickType) {

@@ -573,6 +573,19 @@ export default function App({
   }, []);
 
   React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        soundManager.prepare();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  React.useEffect(() => {
     const synced = loadAndSyncStudyRecord();
     setStudyRecord(synced);
     const harvest = loadTomatoHarvestState();
@@ -1135,45 +1148,14 @@ export default function App({
     void attemptResumeBackgroundVideo(true);
   }, [attemptResumeBackgroundVideo, bgVideoUrl, isActive]);
 
-  const deactivateSystemMediaSession = React.useCallback(() => {
-    const mediaSession = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
-    if (!mediaSession) {
-      return;
-    }
-    mediaSession.playbackState = 'none';
-    mediaSession.metadata = null;
-    const actions: MediaSessionAction[] = [
-      'play',
-      'pause',
-      'seekbackward',
-      'seekforward',
-      'seekto',
-      'previoustrack',
-      'nexttrack',
-    ];
-    for (const action of actions) {
-      try {
-        mediaSession.setActionHandler(action, null);
-      } catch {
-        // Ignore unsupported handlers in this environment.
-      }
-    }
-  }, []);
-
   React.useEffect(() => {
     const handleVisibilityChange = () => {
-      const audio = audioRef.current;
       const video = bgVideoRef.current;
       if (document.visibilityState === 'hidden') {
-        if (audio && !audio.paused) {
-          pauseBackgroundMusicSilently();
-          setIsMusicPlaying(false);
-        }
         if (video && !video.paused) {
           bgVideoLifecyclePausePendingRef.current = true;
           video.pause();
         }
-        deactivateSystemMediaSession();
       }
     };
 
@@ -1182,7 +1164,7 @@ export default function App({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [deactivateSystemMediaSession, pauseBackgroundMusicSilently]);
+  }, []);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;
@@ -1199,7 +1181,6 @@ export default function App({
       return;
     }
 
-    const isVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
     const clearActionHandlers = () => {
       const actions: MediaSessionAction[] = [
         'play',
@@ -1219,7 +1200,7 @@ export default function App({
       }
     };
 
-    if (!isVisible || !isActive || !musicEnabled || !bgMusicUrl) {
+    if (!isActive || !musicEnabled || !bgMusicUrl) {
       mediaSession.playbackState = 'none';
       mediaSession.metadata = null;
       clearActionHandlers();
