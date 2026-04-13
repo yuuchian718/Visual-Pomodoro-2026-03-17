@@ -1058,6 +1058,23 @@ export default function App({
     }
   };
 
+  const resumeAppPlaybackFromMediaSession = React.useCallback(() => {
+    bgMusicUserPausedRef.current = false;
+
+    if (!musicEnabled || !bgMusicUrl) {
+      return;
+    }
+
+    if (!isActive && !isFinished && timeLeft > 0) {
+      logBgMusic('media-session:resume-app-playback', { path: 'toggle-app-active' });
+      toggle();
+      return;
+    }
+
+    logBgMusic('media-session:resume-app-playback', { path: 'resume-audio-only' });
+    void attemptPlayBackgroundMusic();
+  }, [attemptPlayBackgroundMusic, bgMusicUrl, isActive, isFinished, logBgMusic, musicEnabled, timeLeft, toggle]);
+
   React.useEffect(() => {
     return () => {
       if (bgMusicUrlRef.current) {
@@ -1343,8 +1360,7 @@ export default function App({
     mediaSession.playbackState = isMusicPlaying ? 'playing' : 'paused';
     try {
       mediaSession.setActionHandler('play', () => {
-        bgMusicUserPausedRef.current = false;
-        void attemptPlayBackgroundMusic();
+        resumeAppPlaybackFromMediaSession();
       });
     } catch {
       // Ignore unsupported action handlers.
@@ -1363,11 +1379,11 @@ export default function App({
       clearActionHandlers();
     };
   }, [
-    attemptPlayBackgroundMusic,
     bgMusicUrl,
     isMusicPlaying,
     musicEnabled,
     pauseBackgroundMusicSilently,
+    resumeAppPlaybackFromMediaSession,
   ]);
 
   React.useEffect(() => {
