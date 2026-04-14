@@ -1058,6 +1058,54 @@ export default function App({
     }
   };
 
+  const preflightDynamicBackgroundVideo = React.useCallback((url: string) => {
+    return new Promise<boolean>((resolve) => {
+      const probe = document.createElement('video');
+      let settled = false;
+
+      const finish = (result: boolean) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        probe.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        probe.removeEventListener('canplay', handleCanPlay);
+        probe.removeEventListener('error', handleError);
+        probe.removeAttribute('src');
+        probe.load();
+        resolve(result);
+      };
+
+      const handleLoadedMetadata = () => {
+        if (probe.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          finish(true);
+        }
+      };
+
+      const handleCanPlay = () => {
+        finish(true);
+      };
+
+      const handleError = () => {
+        finish(false);
+      };
+
+      const timeoutId = window.setTimeout(() => {
+        finish(false);
+      }, 2500);
+
+      probe.preload = 'metadata';
+      probe.muted = true;
+      probe.playsInline = true;
+      probe.addEventListener('loadedmetadata', handleLoadedMetadata);
+      probe.addEventListener('canplay', handleCanPlay);
+      probe.addEventListener('error', handleError);
+      probe.src = url;
+      probe.load();
+    });
+  }, []);
+
   React.useEffect(() => {
     return () => {
       if (bgMusicUrlRef.current) {
@@ -1067,7 +1115,7 @@ export default function App({
     };
   }, []);
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canUseBackgroundFeatures) {
       return;
     }
@@ -1085,16 +1133,28 @@ export default function App({
       return;
     }
 
+    const nextUrl = URL.createObjectURL(file);
+    const canPlayVideo = await preflightDynamicBackgroundVideo(nextUrl);
+
+    if (!canPlayVideo) {
+      URL.revokeObjectURL(nextUrl);
+      showBgVideoNotice(settingsCopy.videoBackgroundDecodeUnsupported);
+      return;
+    }
+
     if (bgVideoUrlRef.current) {
       URL.revokeObjectURL(bgVideoUrlRef.current);
       bgVideoUrlRef.current = null;
     }
 
-    const nextUrl = URL.createObjectURL(file);
     bgVideoUrlRef.current = nextUrl;
     bgVideoUserPausedRef.current = false;
     setBgVideoUrl(nextUrl);
     setBgVideoName(file.name);
+
+    if (!isActive) {
+      showBgVideoNotice(settingsCopy.videoBackgroundSelectedWhenPaused);
+    }
   };
 
   const handleVideoBackgroundError = () => {
