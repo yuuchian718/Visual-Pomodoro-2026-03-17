@@ -27,7 +27,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
             'font-black leading-none tracking-tighter text-white select-none transition-opacity duration-300 animate-glow',
             hasThreeDigitMinutes
               ? 'text-[clamp(7.8rem,25vw,22rem)] max-md:landscape:text-[clamp(6.4rem,18vw,15rem)] md:text-[clamp(9.5rem,26vw,28rem)]'
-              : 'text-[clamp(10.5rem,38vw,30rem)] max-md:landscape:text-[clamp(8rem,24vw,18rem)] md:text-[clamp(12rem,28vw,32rem)]',
+              : 'text-[clamp(9.2rem,33vw,30rem)] max-md:landscape:text-[clamp(8rem,30vw,18rem)] md:text-[clamp(12rem,28vw,32rem)]',
             isActive ? 'opacity-100' : 'opacity-80',
           )}
           style={{
@@ -66,7 +66,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({ minutes, seconds, is
             'font-black leading-none tracking-tighter animate-glow select-none transition-opacity duration-300 text-black/40',
             hasThreeDigitMinutes
               ? 'text-[clamp(7.2rem,21vw,18rem)] max-md:landscape:text-[clamp(5.5rem,15vw,11rem)] md:text-[clamp(8rem,22vw,20rem)]'
-              : 'text-[clamp(9.2rem,32vw,24rem)] max-md:landscape:text-[clamp(6.8rem,20vw,14rem)] md:text-[clamp(10rem,24vw,24rem)]',
+              : 'text-[clamp(8rem,28vw,24rem)] max-md:landscape:text-[clamp(6.8rem,24vw,14rem)] md:text-[clamp(10rem,24vw,24rem)]',
           )}
           style={{
             textShadow: `

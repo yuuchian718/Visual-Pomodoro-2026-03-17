@@ -175,7 +175,7 @@ export const messages: Record<Locale, MessageDictionary> = {
       music: 'Music',
       toggleMusicTitle: 'Toggle background music',
       musicPremiumTitle: 'Background music requires premium',
-      timerFinished: "Time's up! Great job.",
+      timerFinished: 'That was time well kept',
     },
     settingsModal: {
       title: 'Customization',
@@ -298,7 +298,7 @@ export const messages: Record<Locale, MessageDictionary> = {
       music: '音楽',
       toggleMusicTitle: 'BGM を切り替える',
       musicPremiumTitle: 'BGM はプレミアム機能です',
-      timerFinished: '時間です。お疲れさまでした。',
+      timerFinished: 'よく集中できました',
     },
     settingsModal: {
       title: 'カスタマイズ',
@@ -421,7 +421,7 @@ export const messages: Record<Locale, MessageDictionary> = {
       music: '音乐',
       toggleMusicTitle: '切换背景音乐',
       musicPremiumTitle: '背景音乐需要高级版',
-      timerFinished: '时间到了，做得很好。',
+      timerFinished: '这是一段被好好专注过的时间',
     },
     settingsModal: {
       title: '自定义',

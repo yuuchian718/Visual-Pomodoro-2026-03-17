@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Headphones, HeadphoneOff, Smartphone } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, Volume2, VolumeX, Headphones, HeadphoneOff, Smartphone, Lightbulb } from 'lucide-react';
 import { motion } from 'motion/react';
 import {useLocale} from '../lib/locale';
 import { cn } from '../lib/utils';
@@ -142,9 +142,10 @@ export const TimerControls: React.FC<TimerControlsProps> = ({
         <motion.p 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="text-2xl max-md:landscape:text-lg font-medium text-emerald-400"
+          className="inline-flex items-baseline gap-1.5 text-xl max-md:landscape:text-base font-normal tracking-[0.01em] text-white/80"
         >
-          {copy.timerFinished}
+          <span>{copy.timerFinished}</span>
+          <Lightbulb className="h-4 w-4 max-md:landscape:h-3.5 max-md:landscape:w-3.5 text-white/55" />
         </motion.p>
       )}
     </div>
