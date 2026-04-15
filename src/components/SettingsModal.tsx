@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Timer, Lock, ArrowUpRight, Share2, Play } from 'lucide-react';
+import { Clock, X, ImageIcon, Music, Bell, Music2, ShieldCheck, Timer, Lock, ArrowUpRight, Share2, Play, Lightbulb } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TickType, AlarmType } from '../lib/sounds';
 import type {AccessState} from '../lib/access';
@@ -50,6 +50,7 @@ interface SettingsModalProps {
   onClearLicenseToken: () => Promise<void>;
   onRefreshAccess: () => Promise<void>;
   onActivateCommercialLicenseKey: (licenseKey: string) => Promise<CommercialActivationResult>;
+  bgVideoPlaybackNotice: string | null;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -78,6 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClearLicenseToken,
   onRefreshAccess,
   onActivateCommercialLicenseKey,
+  bgVideoPlaybackNotice,
 }) => {
   const {locale, setLocale, options, messages} = useLocale();
   const copy = messages.settingsModal;
@@ -130,6 +132,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     pulse: copy.alarmPulse,
     chime: copy.alarmChime,
   };
+  const isBgVideoNoticeSuccess =
+    bgVideoPlaybackNotice !== null &&
+    bgVideoPlaybackNotice === copy.videoBackgroundSelectedWhenPaused;
 
   React.useEffect(() => {
     if (!didCopyLink) {
@@ -463,7 +468,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     ref={videoInputRef}
                     onChange={onVideoUpload}
                     className="hidden"
-                    accept="video/mp4,video/webm"
+                    accept="video/mp4,video/webm,video/quicktime,.mov"
                   />
                 </div>
                 {!canUseBackgroundFeatures && (
@@ -475,6 +480,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <p className="mt-3 text-xs text-white/38">
                     {copy.dynamicBackgroundHint}
                   </p>
+                )}
+                {canUseBackgroundFeatures && bgVideoPlaybackNotice && (
+                  <div
+                    className={cn(
+                      "mt-3 flex items-start gap-2.5 text-xs leading-5",
+                      isBgVideoNoticeSuccess ? "text-emerald-200/88" : "text-rose-200/88",
+                    )}
+                  >
+                    <Lightbulb
+                      className={cn(
+                        "mt-0.5 h-3.5 w-3.5 shrink-0",
+                        isBgVideoNoticeSuccess ? "text-emerald-400/90" : "text-rose-400/90",
+                      )}
+                    />
+                    <p className="min-w-0 text-xs leading-5">
+                      {bgVideoPlaybackNotice}
+                    </p>
+                  </div>
                 )}
               </section>
 
@@ -653,6 +676,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   compact
                 />
               </section>
+
             </div>
 
             <button

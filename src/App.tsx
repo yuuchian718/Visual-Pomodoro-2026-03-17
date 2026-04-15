@@ -310,79 +310,21 @@ export default function App({
     },
     [flushStudySegment, resetTomatoSessionTracking, syncTomatoViews],
   );
-  const getBgMusicAudioSnapshot = React.useCallback((): BgMusicAudioSnapshot | null => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return null;
-    }
-
-    return {
-      src: audio.currentSrc || audio.src || '',
-      paused: audio.paused,
-      muted: audio.muted,
-      volume: audio.volume,
-      currentTime: audio.currentTime,
-      readyState: audio.readyState,
-      networkState: audio.networkState,
-      error: audio.error ? `${audio.error.code}:${audio.error.message || ''}` : null,
-    };
-  }, []);
-
-  const logBgMusic = React.useCallback(
-    (label: string, extra: Record<string, unknown> = {}) => {
-      console.info('[bg-music]', label, {
-        ...extra,
-        state: {
-          isActive,
-          musicEnabled,
-          bgMusicUrl,
-          bgMusicName,
-          isMusicPlaying,
-        },
-        audio: getBgMusicAudioSnapshot(),
-      });
-    },
-    [bgMusicName, bgMusicUrl, getBgMusicAudioSnapshot, isActive, isMusicPlaying, musicEnabled],
-  );
-
-  React.useEffect(() => {
-    window.__vpBgMusicDebug = {
-      getSnapshot: getBgMusicAudioSnapshot,
-      getState: () => ({
-        isActive,
-        musicEnabled,
-        bgMusicUrl,
-        bgMusicName,
-        isMusicPlaying,
-      }),
-    };
-
-    return () => {
-      delete window.__vpBgMusicDebug;
-    };
-  }, [bgMusicName, bgMusicUrl, getBgMusicAudioSnapshot, isActive, isMusicPlaying, musicEnabled]);
-
   const attemptPlayBackgroundMusic = React.useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !musicEnabled || !bgMusicUrl) {
-      logBgMusic('play:skipped', {
-        reason: !audio ? 'audio_missing' : !musicEnabled ? 'music_disabled' : 'missing_bgMusicUrl',
-      });
       return false;
     }
 
-    logBgMusic('play:attempt');
     try {
       await audio.play();
       setIsMusicPlaying(true);
-      logBgMusic('play:success');
       return true;
     } catch {
       setIsMusicPlaying(false);
-      logBgMusic('play:rejected');
       return false;
     }
-  }, [bgMusicUrl, logBgMusic, musicEnabled]);
+  }, [bgMusicUrl, musicEnabled]);
 
   const pauseBackgroundMusicSilently = React.useCallback(() => {
     const audio = audioRef.current;
@@ -421,31 +363,15 @@ export default function App({
     const handlePlay = () => {
       setIsMusicPlaying(true);
       bgMusicUserPausedRef.current = false;
-      logBgMusic('event:play');
-      console.info('[bg-audio]', 'play', {
-        at: new Date().toISOString(),
-        visibility: document.visibilityState,
-        isActive,
-        isMusicPlaying: true,
-      });
     };
     const handlePause = () => {
       setIsMusicPlaying(false);
       if (!suppressMusicPauseIntentRef.current && isActive && musicEnabled && bgMusicUrl) {
         bgMusicUserPausedRef.current = true;
       }
-      logBgMusic('event:pause');
-      console.info('[bg-audio]', 'pause', {
-        at: new Date().toISOString(),
-        visibility: document.visibilityState,
-        isActive,
-        isMusicPlaying: false,
-        suppressMusicPauseIntent: suppressMusicPauseIntentRef.current,
-      });
     };
     const handleEnded = () => {
       setIsMusicPlaying(false);
-      logBgMusic('event:ended');
     };
 
     audio.addEventListener('play', handlePlay);
@@ -457,7 +383,7 @@ export default function App({
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [bgMusicUrl, isActive, logBgMusic, musicEnabled]);
+  }, [bgMusicUrl, isActive, musicEnabled]);
 
   React.useEffect(() => {
     const audio = audioRef.current;
@@ -468,7 +394,6 @@ export default function App({
     if (!bgMusicUrl) {
       const currentSrc = audio.getAttribute('src');
       if (currentSrc) {
-        logBgMusic('src:cleared');
         audio.pause();
         audio.removeAttribute('src');
         audio.load();
@@ -478,6 +403,7 @@ export default function App({
     }
 
     const currentSrc = audio.getAttribute('src');
+
     if (currentSrc === bgMusicUrl) {
       return;
     }
@@ -487,9 +413,25 @@ export default function App({
     audio.muted = false;
     audio.volume = 1;
     audio.src = bgMusicUrl;
-    logBgMusic('src:set', { nextSrc: bgMusicUrl });
     audio.load();
-  }, [bgMusicUrl, logBgMusic]);
+  }, [bgMusicUrl, isActive, musicEnabled]);
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || isActive) {
+      return;
+    }
+
+    const currentSrc = audio.getAttribute('src');
+    if (!currentSrc) {
+      return;
+    }
+
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    setIsMusicPlaying(false);
+  }, [isActive]);
 
   React.useEffect(() => {
     const audio = audioRef.current;
@@ -498,7 +440,6 @@ export default function App({
     }
 
     const handleCanPlay = () => {
-      logBgMusic('event:canplay');
       if (!isActive || !musicEnabled || !bgMusicUrl || bgMusicUserPausedRef.current) {
         return;
       }
@@ -509,7 +450,6 @@ export default function App({
     };
 
     const handleLoadedData = () => {
-      logBgMusic('event:loadeddata');
       if (!isActive || !musicEnabled || !bgMusicUrl || bgMusicUserPausedRef.current) {
         return;
       }
@@ -521,7 +461,6 @@ export default function App({
 
     const handleError = () => {
       setIsMusicPlaying(false);
-      logBgMusic('event:error');
     };
 
     audio.addEventListener('canplay', handleCanPlay);
@@ -533,7 +472,7 @@ export default function App({
       audio.removeEventListener('loadeddata', handleLoadedData);
       audio.removeEventListener('error', handleError);
     };
-  }, [attemptPlayBackgroundMusic, bgMusicUrl, isActive, logBgMusic, musicEnabled]);
+  }, [attemptPlayBackgroundMusic, bgMusicUrl, isActive, musicEnabled]);
 
   React.useEffect(() => {
     if (!isQuickStatsOpen) {
@@ -561,26 +500,10 @@ export default function App({
     let rafId: number | null = null;
     let delayedSyncId: number | null = null;
 
-    const logViewportSync = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange', phase: 'immediate' | 'delayed') => {
-      const viewport = window.visualViewport;
-      const orientationType =
-        typeof window.screen?.orientation?.type === 'string'
-          ? window.screen.orientation.type
-          : null;
-
-      console.info('[viewport-sync]', {
-        at: new Date().toISOString(),
-        source,
-        phase,
-        innerWidth: window.innerWidth,
-        innerHeight: window.innerHeight,
-        visualViewportWidth: viewport ? Number(viewport.width.toFixed(2)) : null,
-        visualViewportHeight: viewport ? Number(viewport.height.toFixed(2)) : null,
-        visualViewportScale: viewport ? Number(viewport.scale.toFixed(3)) : null,
-        orientationType,
-        visibility: document.visibilityState,
-      });
-    };
+    const logViewportSync = (
+      _source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange',
+      _phase: 'immediate' | 'delayed',
+    ) => undefined;
 
     const attemptViewportRecovery = (source: 'resize' | 'visualViewport.resize' | 'orientationchange' | 'visibilitychange') => {
       const viewport = window.visualViewport;
@@ -618,11 +541,6 @@ export default function App({
       }
 
       viewportRecoverySignatureRef.current = recoverySignature;
-      console.info('[viewport-recovery]', {
-        at: new Date().toISOString(),
-        source,
-        recoverySignature,
-      });
       setViewportRecoveryKey((prev) => prev + 1);
     };
 
@@ -983,13 +901,6 @@ export default function App({
       bgMusicUserPausedRef.current = false;
       setBgMusicUrl(url);
       setBgMusicName(file.name);
-      logBgMusic('upload:music-selected', {
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        objectUrl: url,
-      });
-
       if (isActive && musicEnabled) {
         void attemptPlayBackgroundMusic();
       }
@@ -1040,7 +951,6 @@ export default function App({
     }
 
     const nextEnabled = !musicEnabled;
-    logBgMusic('music:toggle', { nextEnabled });
     setMusicEnabled(nextEnabled);
     if (nextEnabled) {
       bgMusicUserPausedRef.current = false;
@@ -1049,7 +959,6 @@ export default function App({
 
   const handleToggleTimer = () => {
     const shouldBecomeActive = !isActive;
-    logBgMusic('timer:toggle', { shouldBecomeActive });
     toggle();
 
     if (shouldBecomeActive && bgMusicUrl && musicEnabled) {
@@ -1058,12 +967,15 @@ export default function App({
     }
   };
 
-  const preflightDynamicBackgroundVideo = React.useCallback((url: string) => {
+  const preflightDynamicBackgroundVideo = React.useCallback((url: string, file: File) => {
     return new Promise<boolean>((resolve) => {
       const probe = document.createElement('video');
       let settled = false;
 
-      const finish = (result: boolean) => {
+      const finish = (
+        result: boolean,
+        preflightResult: 'success' | 'error' | 'timeout',
+      ) => {
         if (settled) {
           return;
         }
@@ -1079,21 +991,28 @@ export default function App({
 
       const handleLoadedMetadata = () => {
         if (probe.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          finish(true);
+          finish(true, 'success');
         }
       };
 
       const handleCanPlay = () => {
-        finish(true);
+        finish(true, 'success');
       };
 
       const handleError = () => {
-        finish(false);
+        finish(false, 'error');
       };
 
       const timeoutId = window.setTimeout(() => {
-        finish(false);
+        finish(false, 'timeout');
       }, 2500);
+
+      const canPlayContainer = probe.canPlayType(file.type);
+      const canPlayTypeResult = canPlayContainer || '';
+      if (!canPlayContainer) {
+        finish(false, 'error');
+        return;
+      }
 
       probe.preload = 'metadata';
       probe.muted = true;
@@ -1125,7 +1044,7 @@ export default function App({
       return;
     }
 
-    const allowedTypes = new Set(['video/mp4', 'video/webm']);
+    const allowedTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
     const maxFileSizeBytes = 25 * 1024 * 1024;
 
     if (!allowedTypes.has(file.type) || file.size > maxFileSizeBytes) {
@@ -1134,7 +1053,7 @@ export default function App({
     }
 
     const nextUrl = URL.createObjectURL(file);
-    const canPlayVideo = await preflightDynamicBackgroundVideo(nextUrl);
+    const canPlayVideo = await preflightDynamicBackgroundVideo(nextUrl, file);
 
     if (!canPlayVideo) {
       URL.revokeObjectURL(nextUrl);
@@ -1338,11 +1257,6 @@ export default function App({
 
   React.useEffect(() => {
     const handleVisibilityChange = () => {
-      console.info('[media-visibility]', document.visibilityState, {
-        at: new Date().toISOString(),
-        isActive,
-        isMusicPlaying,
-      });
       const video = bgVideoRef.current;
       if (document.visibilityState === 'hidden') {
         if (video && !video.paused) {
@@ -1357,7 +1271,7 @@ export default function App({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isActive, isMusicPlaying]);
+  }, []);
 
   React.useEffect(() => {
     bgVideoResumeInFlightRef.current = false;
@@ -1393,7 +1307,7 @@ export default function App({
       }
     };
 
-    if (!musicEnabled || !bgMusicUrl) {
+    if (!isActive || !musicEnabled || !bgMusicUrl) {
       mediaSession.playbackState = 'none';
       mediaSession.metadata = null;
       clearActionHandlers();
@@ -1401,34 +1315,11 @@ export default function App({
     }
 
     mediaSession.playbackState = isMusicPlaying ? 'playing' : 'paused';
-    try {
-      mediaSession.setActionHandler('play', () => {
-        bgMusicUserPausedRef.current = false;
-        void attemptPlayBackgroundMusic();
-      });
-    } catch {
-      // Ignore unsupported action handlers.
-    }
-    try {
-      mediaSession.setActionHandler('pause', () => {
-        bgMusicUserPausedRef.current = true;
-        pauseBackgroundMusicSilently();
-        setIsMusicPlaying(false);
-      });
-    } catch {
-      // Ignore unsupported action handlers.
-    }
 
     return () => {
       clearActionHandlers();
     };
-  }, [
-    attemptPlayBackgroundMusic,
-    bgMusicUrl,
-    isMusicPlaying,
-    musicEnabled,
-    pauseBackgroundMusicSilently,
-  ]);
+  }, [bgMusicUrl, isActive, isMusicPlaying, musicEnabled]);
 
   React.useEffect(() => {
     const video = bgVideoRef.current;
@@ -1596,7 +1487,6 @@ export default function App({
     const reset = resetStudyRecord();
     setStudyRecord(reset);
   }, []);
-
   return (
     <div className="relative min-h-screen h-dvh w-full overflow-hidden bg-black font-sans text-white">
       {/* Background Image with Overlay */}
@@ -1852,6 +1742,7 @@ export default function App({
         onClearLicenseToken={onClearLicenseToken}
         onRefreshAccess={onRefreshAccess}
         onActivateCommercialLicenseKey={onActivateCommercialLicenseKey}
+        bgVideoPlaybackNotice={bgVideoPlaybackNotice}
       />
 
 
