@@ -418,6 +418,23 @@ export default function App({
 
   React.useEffect(() => {
     const audio = audioRef.current;
+    if (!audio || isActive) {
+      return;
+    }
+
+    const currentSrc = audio.getAttribute('src');
+    if (!currentSrc) {
+      return;
+    }
+
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    setIsMusicPlaying(false);
+  }, [isActive]);
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
     if (!audio) {
       return;
     }

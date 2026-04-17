@@ -97,41 +97,13 @@ export class SoundManager {
     this.withReadyContext((ctx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      let stopAt = ctx.currentTime + 0.05;
 
       switch (this.tickType) {
         case 'wood':
-          {
-            const noiseFrameCount = Math.ceil(ctx.sampleRate * 0.018);
-            const noiseBuffer = ctx.createBuffer(1, noiseFrameCount, ctx.sampleRate);
-            const noiseData = noiseBuffer.getChannelData(0);
-            for (let i = 0; i < noiseFrameCount; i += 1) {
-              noiseData[i] = Math.random() * 2 - 1;
-            }
-
-            const noise = ctx.createBufferSource();
-            const clickFilter = ctx.createBiquadFilter();
-            const clickGain = ctx.createGain();
-
-            noise.buffer = noiseBuffer;
-            clickFilter.type = 'bandpass';
-            clickFilter.frequency.setValueAtTime(2100, ctx.currentTime);
-            clickFilter.Q.setValueAtTime(2.1, ctx.currentTime);
-            clickGain.gain.setValueAtTime(0.085, ctx.currentTime);
-            clickGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.011);
-
-            noise.connect(clickFilter);
-            clickFilter.connect(clickGain);
-            clickGain.connect(ctx.destination);
-            noise.start(ctx.currentTime);
-            noise.stop(ctx.currentTime + 0.014);
-          }
-
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(680, ctx.currentTime);
-          gain.gain.setValueAtTime(0.024, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
-          stopAt = ctx.currentTime + 0.022;
+          osc.frequency.setValueAtTime(400, ctx.currentTime);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
           break;
         case 'digital':
           osc.type = 'square';
@@ -150,7 +122,7 @@ export class SoundManager {
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(stopAt);
+      osc.stop(ctx.currentTime + 0.05);
     });
   }
 
