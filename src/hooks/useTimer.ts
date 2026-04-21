@@ -28,6 +28,15 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
     return document.visibilityState === 'visible';
   }, [soundEnabled]);
 
+  const canPlayHiddenDesktopTick = useCallback(() => {
+    if (!soundEnabled || typeof window === 'undefined' || typeof document === 'undefined') {
+      return false;
+    }
+
+    const isDesktopLike = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    return isDesktopLike && document.visibilityState === 'hidden';
+  }, [soundEnabled]);
+
   const syncTimeLeft = useCallback(() => {
     if (targetEndAtRef.current === null) {
       return;
@@ -36,16 +45,46 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
     setTimeLeft(prev => {
       const next = Math.max(0, Math.ceil((targetEndAtRef.current! - Date.now()) / 1000));
       const shouldPlaySfx = canPlaySfx();
+      const shouldPlayHiddenDesktopTick = canPlayHiddenDesktopTick();
 
-      if (next > 0 && next < prev && shouldPlaySfx) {
-        if (next <= 10) {
+      if (next > 0 && next < prev) {
+        if (next <= 10 && shouldPlaySfx) {
           soundManager.playAlarm(next);
-        } else {
+        } else if (next > 10 && (shouldPlaySfx || shouldPlayHiddenDesktopTick)) {
+          if (!shouldPlaySfx && shouldPlayHiddenDesktopTick) {
+            console.info('[sfx]', 'allowed:desktop-hidden-tick', {
+              at: new Date().toISOString(),
+              visibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+              isDesktopLike: true,
+              next,
+              prev,
+            });
+          }
           soundManager.playTick();
+        } else if (!shouldPlaySfx) {
+          console.info('[sfx]', 'skipped:timer-hidden-or-disabled', {
+            at: new Date().toISOString(),
+            visibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            isDesktopLike: shouldPlayHiddenDesktopTick,
+            soundEnabled,
+            blockedSound: next <= 10 ? 'alarm' : 'tick',
+            next,
+            prev,
+          });
         }
       } else if (next === 0 && prev !== 0) {
         if (shouldPlaySfx) {
           soundManager.playFinish();
+        } else {
+          console.info('[sfx]', 'skipped:timer-hidden-or-disabled', {
+            at: new Date().toISOString(),
+            visibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            isDesktopLike: shouldPlayHiddenDesktopTick,
+            soundEnabled,
+            blockedSound: 'finish',
+            next,
+            prev,
+          });
         }
         targetEndAtRef.current = null;
         setIsActive(false);
@@ -55,7 +94,7 @@ export function useTimer(initialMinutes: number, options: { soundEnabled?: boole
 
       return next;
     });
-  }, [canPlaySfx, clearTimer]);
+  }, [canPlayHiddenDesktopTick, canPlaySfx, clearTimer, soundEnabled]);
 
   const settlePausedTimeLeft = useCallback(() => {
     if (targetEndAtRef.current === null) {
